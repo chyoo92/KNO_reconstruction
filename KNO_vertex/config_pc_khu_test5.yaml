@@ -1,0 +1,32 @@
+## Configuration for the training, evaluation
+samples:
+
+  - name: KNO
+    path: /home/chyoo/work/KNO_500_pmt500_dis3500/*.pt
+
+
+    
+training:
+    nDataLoaders : 20
+    splitFractions : [0.7, 0.2] ## training set, validation set. (test set is the reminders)
+    epoch : 500
+    batch : 32
+    learningRate : 0.001
+    randomSeed : 12346772345
+
+    
+model:
+    fea : 5
+    model: 'piver'
+    cla : 3
+    hidden : 64
+    heads : 8
+    posfeed : 64
+    dropout : 0.1
+    depths : 3
+    pmts : 1000
+    num_latents : 500
+    query_dim : 64
+
+    
+    

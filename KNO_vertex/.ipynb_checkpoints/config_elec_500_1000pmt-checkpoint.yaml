@@ -1,0 +1,28 @@
+## Configuration for the training, evaluation
+samples:
+
+  - name: KNO
+    path: /home/chyoo/work/KNO_VRDL/data/KNO_500_sort1000_more1500/*.pt
+    
+training:
+    nDataLoaders : 16
+    splitFractions : [0.7, 0.2] ## training set, validation set. (test set is the reminders)
+    epoch : 500
+    batch : 16
+    learningRate : 0.001
+    randomSeed : 12345
+
+    
+model:
+    fea : 5
+    model: 'SAKER_v3'
+    cla : 3
+    hidden : 8
+    heads : 32
+    posfeed : 512
+    dropout : 0.1
+    depths : 3
+    pmts : 1000
+     
+    
+    
