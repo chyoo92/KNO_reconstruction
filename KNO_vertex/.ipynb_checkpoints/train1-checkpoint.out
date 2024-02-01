@@ -1,6 +1,0 @@
-Traceback (most recent call last):
-  File "/home/chyoo/work/KNO_reconstruction/KNO_vertex/train_run.py", line 24, in <module>
-    from model.allModel import *
-  File "/home/chyoo/work/KNO_reconstruction/KNO_vertex/./module/model/allModel.py", line 2, in <module>
-    from model.SAKER_V2 import *
-ModuleNotFoundError: No module named 'model.SAKER_V2'

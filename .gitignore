@@ -3,6 +3,9 @@
 */*.out
 */*.sh
 */*.log
+*/*.h5
+*/*/*.h5
+h5_file
 # Created by https://www.toptal.com/developers/gitignore/api/python
 # Edit at https://www.toptal.com/developers/gitignore?templates=python
 
