@@ -26,7 +26,7 @@ from torch.utils.data.distributed import DistributedSampler
 
 sys.path.append("./module")
 from model.allModel import *
-from datasets.dataset_h5_v2 import NeuEvDataset as Dataset
+from datasets.dataset_h5_v4 import NeuEvDataset as Dataset
 
 from re import match
 
@@ -41,51 +41,17 @@ def get_args_parser():
 
     return parser
 
-
-
-### world size : 사용되는 프로세스들의 갯수 = 분산 처리에서 사용되는 총 gpu개수
-### rank : process(GPU)의 id
-### global rank : 전체 node에서의 id
-### local rank : 각 node에서의 id
-
-
 def main_worker(rank,args):
 
-    # print(args.rank,'erererer')
+
     local_gpu_id = init_for_distributed(rank,args)
 
-    # init_for_distributed(args)
-    # local_gpu_id = args.gpu
-
-    ############################ data loder
     config = yaml.load(open(args.config).read(), Loader=yaml.FullLoader)
 
-
-    torch.set_num_threads(os.cpu_count())
-
-    if not os.path.exists('result/' + args.output): os.makedirs('result/' + args.output)
-
-
-
+    if rank==0:
+        if not os.path.exists('result/' + args.output): os.makedirs('result/' + args.output)
 
     dset = Dataset()
-    # pattern = config['samples']['path']
-    # if not (pattern.startswith('/') and pattern.startswith('/')):
-    #     if '*' in pattern: pattern = pattern.replace('*', '.*')
-    # else:
-    #     pattern = pattern[1:-1]
-
-    # for d in config['samples']:
-    #     print(d,'ddddddddddddd')
-    #     # if d['name'] != dname: continue
-    #     # if not match(pattern, d['path']): continue
-    #     paths = d['path']
-    #     print(paths)
-    #     for p in paths: dset.addSample(p)
-    # dset.initialize()
-    # print(dset)
-
-
     for sampleInfo in config['samples']:
         if 'ignore' in sampleInfo and sampleInfo['ignore']: continue
         name = sampleInfo['name']
@@ -97,19 +63,17 @@ def main_worker(rank,args):
     torch.manual_seed(config['training']['randomSeed'])
     trnDset, valDset, testDset = torch.utils.data.random_split(dset, lengths)
 
-    # trnLoader = DataLoader(trnDset, **kwargs)
     train_sampler = DistributedSampler(trnDset,shuffle=True)
     trnLoader = torch.utils.data.DataLoader(trnDset, batch_size=int(config['training']['batch']/args.world_size), shuffle=False, num_workers = config['training']['nDataLoaders'], pin_memory = True, sampler=train_sampler)
 
-    # valLoader = DataLoader(valDset, **kwargs)
     val_sampler = DistributedSampler(valDset,shuffle=False)
     valLoader = torch.utils.data.DataLoader(valDset, batch_size=int(config['training']['batch']/args.world_size), shuffle=False, num_workers = config['training']['nDataLoaders'], pin_memory = True, sampler=val_sampler)
     torch.manual_seed(torch.initial_seed())
 
-    ################# define model
 
+    
 
-    model = piver_mul_fullpmt(fea = config['model']['fea'], \
+    model = piver_mul_fullpmt_v2(fea = config['model']['fea'], \
 
                     cla = config['model']['cla'], \
                     depths = config['model']['depths'], \
@@ -118,9 +82,11 @@ def main_worker(rank,args):
                     posfeed = config['model']['posfeed'], \
                     dropout = config['model']['dropout'], \
                     batch = int(config['training']['batch']/args.world_size), \
-                    pmts = config['model']['pmts'], \
+                    cross_head = config['model']['cross_head'], \
+                    cross_dim = config['model']['cross_dim'], \
+                    cross_latents = config['model']['cross_latents'], \
                     num_latents = config['model']['num_latents'], \
-                    query_dim = config['model']['query_dim'], \
+                    
                     device= local_gpu_id)
 
     model.cuda(local_gpu_id)
@@ -163,19 +129,19 @@ def main_worker(rank,args):
         
         train_sampler.set_epoch(epoch)
 
-        for i, (pmt_q, pmt_t, vtx_pos) in enumerate(tqdm(trnLoader, desc='epoch %d/%d' % (epoch+1, nEpoch))):
+        for i, (pmt_q, pmt_t, vtx_pos,pmt_pos) in enumerate(tqdm(trnLoader, desc='epoch %d/%d' % (epoch+1, nEpoch))):
 
-            
             pmts_q = pmt_q.reshape(pmt_q.shape[0],pmt_q.shape[1],1).to(local_gpu_id)
             pmts_t = pmt_t.reshape(pmt_q.shape[0],pmt_q.shape[1],1).to(local_gpu_id)
+            pmt_pos = pmt_pos.to(local_gpu_id)
 
-            
+
             
             data = torch.cat([pmts_q,pmts_t],dim=2)
 
 
 
-            pmt_pos = pmt_pos_pre.unsqueeze(0).repeat(data.shape[0],1,1).to(local_gpu_id)
+            # pmt_pos = pmt_pos_pre.unsqueeze(0).repeat(data.shape[0],1,1).to(local_gpu_id)
             
             labels = vtx_pos.float().to(device=local_gpu_id) ### vertex
             
@@ -183,7 +149,7 @@ def main_worker(rank,args):
             label = labels.reshape(-1,3)
             
             pred = model(data,pmt_pos)
- 
+
             
             loss = crit(pred, label)
             loss.backward()
@@ -210,15 +176,16 @@ def main_worker(rank,args):
         val_loss, val_acc = 0., 0.
         nProcessed = 0
         with torch.no_grad():
-            for i, (pmt_q, pmt_t, vtx_pos) in enumerate(tqdm(valLoader)):
+            for i, (pmt_q, pmt_t, vtx_pos,pmt_pos) in enumerate(tqdm(valLoader)):
 
                 pmts_q = pmt_q.reshape(pmt_q.shape[0],pmt_q.shape[1],1).to(local_gpu_id)
                 pmts_t = pmt_t.reshape(pmt_q.shape[0],pmt_q.shape[1],1).to(local_gpu_id)
-                
+                pmt_pos = pmt_pos.to(local_gpu_id)
+
                 data = torch.cat([pmts_q,pmts_t],dim=2)
+                # data = pmts_q
 
-
-                pmt_pos = pmt_pos_pre.unsqueeze(0).repeat(data.shape[0],1,1).to(local_gpu_id)
+                # pmt_pos = pmt_pos_pre.unsqueeze(0).repeat(data.shape[0],1,1).to(local_gpu_id)
                 
                 labels = vtx_pos.float().to(device=local_gpu_id) ### vertex
                 

@@ -26,7 +26,7 @@ from torch.utils.data.distributed import DistributedSampler
 
 sys.path.append("./module")
 from model.allModel import *
-from datasets.dataset_h5_v2 import NeuEvDataset as Dataset
+from datasets.dataset_h5_v4 import NeuEvDataset as Dataset
 
 from re import match
 
@@ -108,7 +108,6 @@ def main_worker(rank,args):
 
     ################# define model
 
-
     model = piver_mul_fullpmt(fea = config['model']['fea'], \
 
                     cla = config['model']['cla'], \
@@ -118,7 +117,7 @@ def main_worker(rank,args):
                     posfeed = config['model']['posfeed'], \
                     dropout = config['model']['dropout'], \
                     batch = int(config['training']['batch']/args.world_size), \
-                    pmts = config['model']['pmts'], \
+                    cross_head = config['model']['cross_head'], \
                     num_latents = config['model']['num_latents'], \
                     query_dim = config['model']['query_dim'], \
                     device= local_gpu_id)
@@ -132,7 +131,7 @@ def main_worker(rank,args):
 
 
 
-    crit = LogCoshLoss().to(local_gpu_id)
+    crit = nn.MSELoss().to(local_gpu_id)
 
     optm = torch.optim.Adam(model.parameters(), lr=config['training']['learningRate'])
 
@@ -163,19 +162,27 @@ def main_worker(rank,args):
         
         train_sampler.set_epoch(epoch)
 
-        for i, (pmt_q, pmt_t, vtx_pos) in enumerate(tqdm(trnLoader, desc='epoch %d/%d' % (epoch+1, nEpoch))):
+        for i, (pmt_q, pmt_t, vtx_pos,pmt_pos) in enumerate(tqdm(trnLoader, desc='epoch %d/%d' % (epoch+1, nEpoch))):
 
             
             pmts_q = pmt_q.reshape(pmt_q.shape[0],pmt_q.shape[1],1).to(local_gpu_id)
             pmts_t = pmt_t.reshape(pmt_q.shape[0],pmt_q.shape[1],1).to(local_gpu_id)
+            pmt_pos = pmt_pos.to(local_gpu_id)
+            # print(pmts_q)
+            # print(pmts_t)
 
+            # print(pmts_q.shape)
+            # print(pmts_t.shape)
+            # print(pmt_pos.shape)
+            # print(pmt_pos)
             
+            # stop
             
             data = torch.cat([pmts_q,pmts_t],dim=2)
+            # data = pmts_q
 
 
-
-            pmt_pos = pmt_pos_pre.unsqueeze(0).repeat(data.shape[0],1,1).to(local_gpu_id)
+            # pmt_pos = pmt_pos_pre.unsqueeze(0).repeat(data.shape[0],1,1).to(local_gpu_id)
             
             labels = vtx_pos.float().to(device=local_gpu_id) ### vertex
             
@@ -210,15 +217,15 @@ def main_worker(rank,args):
         val_loss, val_acc = 0., 0.
         nProcessed = 0
         with torch.no_grad():
-            for i, (pmt_q, pmt_t, vtx_pos) in enumerate(tqdm(valLoader)):
+            for i, (pmt_q, pmt_t, vtx_pos,pmt_pos) in enumerate(tqdm(valLoader)):
 
                 pmts_q = pmt_q.reshape(pmt_q.shape[0],pmt_q.shape[1],1).to(local_gpu_id)
                 pmts_t = pmt_t.reshape(pmt_q.shape[0],pmt_q.shape[1],1).to(local_gpu_id)
-                
+                pmt_pos = pmt_pos.to(local_gpu_id)
                 data = torch.cat([pmts_q,pmts_t],dim=2)
+                # data = pmts_q
 
-
-                pmt_pos = pmt_pos_pre.unsqueeze(0).repeat(data.shape[0],1,1).to(local_gpu_id)
+                # pmt_pos = pmt_pos_pre.unsqueeze(0).repeat(data.shape[0],1,1).to(local_gpu_id)
                 
                 labels = vtx_pos.float().to(device=local_gpu_id) ### vertex
                 

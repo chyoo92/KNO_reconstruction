@@ -29,7 +29,7 @@ from model.allModel import *
 from datasets.dataset_h5_v2 import NeuEvDataset as Dataset
 
 from re import match
-
+import time
 
 def get_args_parser():
     parser = argparse.ArgumentParser(add_help=False)
@@ -51,9 +51,8 @@ def get_args_parser():
 
 def main_worker(rank,args):
 
-    # print(args.rank,'erererer')
     local_gpu_id = init_for_distributed(rank,args)
-
+    print(rank,args.rank,local_gpu_id,time.time(),'erererer')
     # init_for_distributed(args)
     # local_gpu_id = args.gpu
 
@@ -122,16 +121,13 @@ def main_worker(rank,args):
                     num_latents = config['model']['num_latents'], \
                     query_dim = config['model']['query_dim'], \
                     device= local_gpu_id)
-
+    if rank == 0:
+        print(local_gpu_id)
     model.cuda(local_gpu_id)
-    
-    if rank==0:
-        torch.save(model, os.path.join('result/' + args.output, 'model.pth'))
-        
     model = DistributedDataParallel(module = model, device_ids=[local_gpu_id], find_unused_parameters=True)
 
 
-
+    torch.save(model, os.path.join('result/' + args.output, 'model.pth'))
     crit = LogCoshLoss().to(local_gpu_id)
 
     optm = torch.optim.Adam(model.parameters(), lr=config['training']['learningRate'])
@@ -203,65 +199,59 @@ def main_worker(rank,args):
         trn_loss /= nProcessed 
 
         print(trn_loss,'trn_loss')
-        
-        torch.save(model.state_dict(), os.path.join('result/' + args.output, 'model_state_dict_rt.pth'))
-        torch.save(model.module.state_dict(), os.path.join('result/' + args.output, 'model_module_state_dict_rt.pth'))  
+
         model.eval()
         val_loss, val_acc = 0., 0.
         nProcessed = 0
-        with torch.no_grad():
-            for i, (pmt_q, pmt_t, vtx_pos) in enumerate(tqdm(valLoader)):
+        for i, (pmt_q, pmt_t, vtx_pos) in enumerate(tqdm(valLoader)):
 
-                pmts_q = pmt_q.reshape(pmt_q.shape[0],pmt_q.shape[1],1).to(local_gpu_id)
-                pmts_t = pmt_t.reshape(pmt_q.shape[0],pmt_q.shape[1],1).to(local_gpu_id)
+            pmts_q = pmt_q.reshape(pmt_q.shape[0],pmt_q.shape[1],1).to(local_gpu_id)
+            pmts_t = pmt_t.reshape(pmt_q.shape[0],pmt_q.shape[1],1).to(local_gpu_id)
+            
+            data = torch.cat([pmts_q,pmts_t],dim=2)
+
+
+            pmt_pos = pmt_pos_pre.unsqueeze(0).repeat(data.shape[0],1,1).to(local_gpu_id)
+            
+            labels = vtx_pos.float().to(device=local_gpu_id) ### vertex
+            
+            label = labels.reshape(-1,3)
+            pred = model(data,pmt_pos)
+
+
+            
+            loss = crit(pred, label)
+            
+            ibatch = len(label)
+            nProcessed += ibatch
+            val_loss += loss.item()*ibatch
+            del pmt_q, pmt_t, pmts_q, pmts_t, labels, vtx_pos, data, pmt_pos, pred, label
                 
-                data = torch.cat([pmts_q,pmts_t],dim=2)
+        val_loss /= nProcessed
+        print(val_loss,'val_loss')
+        if bestLoss > val_loss:
+            bestState = model.to('cpu').state_dict()
+            bestLoss = val_loss
+            torch.save(bestState, os.path.join('result/' + args.output, 'weight.pth'))
 
+            model.to(local_gpu_id)
+        
+        
+        train['loss'].append(trn_loss)
+        train['val_loss'].append(val_loss)
 
-                pmt_pos = pmt_pos_pre.unsqueeze(0).repeat(data.shape[0],1,1).to(local_gpu_id)
-                
-                labels = vtx_pos.float().to(device=local_gpu_id) ### vertex
-                
-                label = labels.reshape(-1,3)
-                pred = model(data,pmt_pos)
-
-
-                
-                loss = crit(pred, label)
-                
-                ibatch = len(label)
-                nProcessed += ibatch
-                val_loss += loss.item()*ibatch
-                del pmt_q, pmt_t, pmts_q, pmts_t, labels, vtx_pos, data, pmt_pos, pred, label
-
-                    
-            val_loss /= nProcessed
-            print(val_loss,'val_loss')
-            if bestLoss > val_loss:
-                bestState = model.to('cpu').state_dict()
-                bestLoss = val_loss
-                torch.save(bestState, os.path.join('result/' + args.output, 'minval_model_state_dict.pth'))
-
-                model.to(local_gpu_id)
-                torch.save(model.module.state_dict(), os.path.join('result/' + args.output, 'minval_model_module_state_dict.pth'))    
- 
-                            
-            train['loss'].append(trn_loss)
-            train['val_loss'].append(val_loss)
-
-            with open(os.path.join('result/' + args.output, 'train.csv'), 'w') as f:
-                writer = csv.writer(f)
-                keys = train.keys()
-                writer.writerow(keys)
-                for row in zip(*[train[key] for key in keys]):
-                    writer.writerow(row)
+        with open(os.path.join('result/' + args.output, 'train.csv'), 'w') as f:
+            writer = csv.writer(f)
+            keys = train.keys()
+            writer.writerow(keys)
+            for row in zip(*[train[key] for key in keys]):
+                writer.writerow(row)
         
         
 
 
     bestState = model.to('cpu').state_dict()
     torch.save(bestState, os.path.join('result/' + args.output, 'weightFinal.pth'))
-    torch.save(model.module.state_dict(), os.path.join('result/' + args.output, 'module_weightFinal.pth'))
     return 0
 
 

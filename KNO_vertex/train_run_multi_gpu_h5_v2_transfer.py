@@ -29,12 +29,13 @@ from model.allModel import *
 from datasets.dataset_h5_v2 import NeuEvDataset as Dataset
 
 from re import match
-
+import time
 
 def get_args_parser():
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument('--config', action='store', type=str)
     parser.add_argument('-o', '--output', action='store', type=str)
+    parser.add_argument('--loadmap', action='store', type=str)
     parser.add_argument('--device', nargs="+", default=['0','1'])
 
     parser.add_argument('--rank_i', type=int, default=0)
@@ -51,12 +52,12 @@ def get_args_parser():
 
 def main_worker(rank,args):
 
-    # print(args.rank,'erererer')
-    local_gpu_id = init_for_distributed(rank,args)
+    local_gpu_id, now_rank = init_for_distributed(rank,args)    # init_for_distributed(args)
+    # local_gpu_id = now_rank
+    print(rank,args.rank,local_gpu_id,time.time(),'erererer')
 
-    # init_for_distributed(args)
     # local_gpu_id = args.gpu
-
+    # local_gpu_id = now_rank
     ############################ data loder
     config = yaml.load(open(args.config).read(), Loader=yaml.FullLoader)
 
@@ -69,21 +70,6 @@ def main_worker(rank,args):
 
 
     dset = Dataset()
-    # pattern = config['samples']['path']
-    # if not (pattern.startswith('/') and pattern.startswith('/')):
-    #     if '*' in pattern: pattern = pattern.replace('*', '.*')
-    # else:
-    #     pattern = pattern[1:-1]
-
-    # for d in config['samples']:
-    #     print(d,'ddddddddddddd')
-    #     # if d['name'] != dname: continue
-    #     # if not match(pattern, d['path']): continue
-    #     paths = d['path']
-    #     print(paths)
-    #     for p in paths: dset.addSample(p)
-    # dset.initialize()
-    # print(dset)
 
 
     for sampleInfo in config['samples']:
@@ -107,31 +93,35 @@ def main_worker(rank,args):
     torch.manual_seed(torch.initial_seed())
 
     ################# define model
-
-
-    model = piver_mul_fullpmt(fea = config['model']['fea'], \
-
-                    cla = config['model']['cla'], \
-                    depths = config['model']['depths'], \
-                    hidden = config['model']['hidden'], \
-                    heads = config['model']['heads'], \
-                    posfeed = config['model']['posfeed'], \
-                    dropout = config['model']['dropout'], \
-                    batch = int(config['training']['batch']/args.world_size), \
-                    pmts = config['model']['pmts'], \
-                    num_latents = config['model']['num_latents'], \
-                    query_dim = config['model']['query_dim'], \
-                    device= local_gpu_id)
-
-    model.cuda(local_gpu_id)
+    # local_gpu_id = now_rank
+    device = 'cuda:'+str(local_gpu_id)
     
-    if rank==0:
-        torch.save(model, os.path.join('result/' + args.output, 'model.pth'))
-        
+
+    # model = piver_mul_fullpmt(fea = config['model']['fea'], \
+
+    #                 cla = config['model']['cla'], \
+    #                 depths = config['model']['depths'], \
+    #                 hidden = config['model']['hidden'], \
+    #                 heads = config['model']['heads'], \
+    #                 posfeed = config['model']['posfeed'], \
+    #                 dropout = config['model']['dropout'], \
+    #                 batch = int(config['training']['batch']/args.world_size), \
+    #                 pmts = config['model']['pmts'], \
+    #                 num_latents = config['model']['num_latents'], \
+    #                 query_dim = config['model']['query_dim'], \
+    #                 device= local_gpu_id)
+    model = torch.load('result/' + args.loadmap+'/model.pth',map_location='cuda')
+    model.load_state_dict(torch.load('result/' + args.loadmap+'/model_module_state_dict_rt.pth',map_location='cuda'),strict=False)
+    model = model.cuda(local_gpu_id)
+    # model = model.cuda()
+    # model = torch.load('result/' + args.output+'/model.pth', map_location=device)
+    # model.module.load_state_dict(torch.load('result/' + args.output+'/weight.pth',map_location=device),strict=False)
+    
     model = DistributedDataParallel(module = model, device_ids=[local_gpu_id], find_unused_parameters=True)
+    
+    
 
-
-
+    torch.save(model, os.path.join('result/' + args.output, 'model.pth'))
     crit = LogCoshLoss().to(local_gpu_id)
 
     optm = torch.optim.Adam(model.parameters(), lr=config['training']['learningRate'])
@@ -182,8 +172,12 @@ def main_worker(rank,args):
             
             label = labels.reshape(-1,3)
             
+            # print(now_rank, local_gpu_id,model.device.index,data,pmt_pos,' model ty;e')
+            device_index = get_model_device_index(model)
+            print(data.device, pmt_pos.device, device_index, local_gpu_id, '---device index---')
+            # print(model.state_dict(),'asdfasdfasdfasdfasdf')
             pred = model(data,pmt_pos)
- 
+            # print(model.device.index,'ok')
             
             loss = crit(pred, label)
             loss.backward()
@@ -195,7 +189,7 @@ def main_worker(rank,args):
             ibatch = len(label)
             nProcessed += ibatch
             trn_loss += loss.item()*ibatch
-
+            
             del pmt_q, pmt_t, pmts_q, pmts_t, labels, vtx_pos, data, pmt_pos, pred, label
 
             
@@ -203,40 +197,38 @@ def main_worker(rank,args):
         trn_loss /= nProcessed 
 
         print(trn_loss,'trn_loss')
-        
         torch.save(model.state_dict(), os.path.join('result/' + args.output, 'model_state_dict_rt.pth'))
         torch.save(model.module.state_dict(), os.path.join('result/' + args.output, 'model_module_state_dict_rt.pth'))  
+        
         model.eval()
         val_loss, val_acc = 0., 0.
         nProcessed = 0
-        with torch.no_grad():
-            for i, (pmt_q, pmt_t, vtx_pos) in enumerate(tqdm(valLoader)):
+        for i, (pmt_q, pmt_t, vtx_pos) in enumerate(tqdm(valLoader)):
 
-                pmts_q = pmt_q.reshape(pmt_q.shape[0],pmt_q.shape[1],1).to(local_gpu_id)
-                pmts_t = pmt_t.reshape(pmt_q.shape[0],pmt_q.shape[1],1).to(local_gpu_id)
+            pmts_q = pmt_q.reshape(pmt_q.shape[0],pmt_q.shape[1],1).to(local_gpu_id)
+            pmts_t = pmt_t.reshape(pmt_q.shape[0],pmt_q.shape[1],1).to(local_gpu_id)
+            
+            data = torch.cat([pmts_q,pmts_t],dim=2)
+
+
+            pmt_pos = pmt_pos_pre.unsqueeze(0).repeat(data.shape[0],1,1).to(local_gpu_id)
+            
+            labels = vtx_pos.float().to(device=local_gpu_id) ### vertex
+            
+            label = labels.reshape(-1,3)
+            pred = model(data,pmt_pos)
+
+
+            
+            loss = crit(pred, label)
+            
+            ibatch = len(label)
+            nProcessed += ibatch
+            val_loss += loss.item()*ibatch
+            del pmt_q, pmt_t, pmts_q, pmts_t, labels, vtx_pos, data, pmt_pos, pred, label
                 
-                data = torch.cat([pmts_q,pmts_t],dim=2)
-
-
-                pmt_pos = pmt_pos_pre.unsqueeze(0).repeat(data.shape[0],1,1).to(local_gpu_id)
-                
-                labels = vtx_pos.float().to(device=local_gpu_id) ### vertex
-                
-                label = labels.reshape(-1,3)
-                pred = model(data,pmt_pos)
-
-
-                
-                loss = crit(pred, label)
-                
-                ibatch = len(label)
-                nProcessed += ibatch
-                val_loss += loss.item()*ibatch
-                del pmt_q, pmt_t, pmts_q, pmts_t, labels, vtx_pos, data, pmt_pos, pred, label
-
-                    
-            val_loss /= nProcessed
-            print(val_loss,'val_loss')
+        val_loss /= nProcessed
+        print(val_loss,'val_loss')
             if bestLoss > val_loss:
                 bestState = model.to('cpu').state_dict()
                 bestLoss = val_loss
@@ -245,18 +237,20 @@ def main_worker(rank,args):
                 model.to(local_gpu_id)
                 torch.save(model.module.state_dict(), os.path.join('result/' + args.output, 'minval_model_module_state_dict.pth'))    
  
-                            
-            train['loss'].append(trn_loss)
-            train['val_loss'].append(val_loss)
+        
+        
+        train['loss'].append(trn_loss)
+        train['val_loss'].append(val_loss)
 
-            with open(os.path.join('result/' + args.output, 'train.csv'), 'w') as f:
-                writer = csv.writer(f)
-                keys = train.keys()
-                writer.writerow(keys)
-                for row in zip(*[train[key] for key in keys]):
-                    writer.writerow(row)
+        with open(os.path.join('result/' + args.output, 'train.csv'), 'w') as f:
+            writer = csv.writer(f)
+            keys = train.keys()
+            writer.writerow(keys)
+            for row in zip(*[train[key] for key in keys]):
+                writer.writerow(row)
         
         
+
 
 
     bestState = model.to('cpu').state_dict()
@@ -267,14 +261,17 @@ def main_worker(rank,args):
 
 
 
+
 def init_for_distributed(rank,args):
-    
+
     # 1. setting for distributed training
     args.rank = rank
     local_gpu_id = int(args.device[args.rank])
+    # print(rank,args,local_gpu_id,'--------1111111111111------')
     torch.cuda.set_device(local_gpu_id)
     if args.rank is not None:
         print("Use GPU: {} for training".format(local_gpu_id),args.rank)
+        # print("Use GPU: {} for training".format(local_gpu_id))
 
     # 2. init_process_group
     dist.init_process_group(backend='nccl',
@@ -285,9 +282,10 @@ def init_for_distributed(rank,args):
     # if put this function, the all processes block at all.
     torch.distributed.barrier()
     # convert print fn iif rank is zero
-    setup_for_distributed(args.rank == 0)
-    print(args,'--------------initialize--------------')
-    return local_gpu_id
+    # setup_for_distributed(args.rank == 0)
+    # print(rank,args,'--------------222222222')
+    # print(args,'--------------initialize--------------')
+    return local_gpu_id, rank
 
 
 def setup_for_distributed(is_master):
@@ -316,3 +314,19 @@ if __name__ == '__main__':
     mp.spawn(main_worker, args=(args,),nprocs=args.world_size,join=True)
 
 
+def get_model_device_index(model):
+
+    state_dict = model.state_dict()
+
+
+    for key, value in state_dict.items():
+
+
+        device = value.device
+
+        if device.type == "cuda":
+
+
+            return device.index
+
+    return -1

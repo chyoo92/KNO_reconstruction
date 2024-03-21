@@ -5,11 +5,11 @@ import torch
 from torch.nn import Linear
 
 
-from model.perceiver_rev_fullpmt import *
+from model.perceiver_rev_fullpmt_mask import *
 
-class piver_mul_fullpmt(nn.Module):
+class piver_mul_fullpmt_mask(nn.Module):
     def __init__(self,**kwargs):
-        super(piver_mul_fullpmt, self).__init__()
+        super(piver_mul_fullpmt_mask, self).__init__()
 
         self.fea = kwargs['fea']
         self.cla = kwargs['cla']
@@ -46,7 +46,7 @@ class piver_mul_fullpmt(nn.Module):
 
         self.relu = nn.LeakyReLU()
         self.dropout = nn.Dropout(self.dropout_ratio)       
-    def forward(self, data,pos):
+    def forward(self, data,pos,mask):
         
         x, pos = data, pos
 
@@ -55,7 +55,7 @@ class piver_mul_fullpmt(nn.Module):
         fea = torch.cat([x,pos],dim=2)
 
  
-        out = self.cross_attention_layer(fea)
+        out = self.cross_attention_layer(fea,mask)
 
         out = self.encoder(out)
 

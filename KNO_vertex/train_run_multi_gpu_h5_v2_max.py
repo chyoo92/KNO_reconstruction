@@ -26,7 +26,7 @@ from torch.utils.data.distributed import DistributedSampler
 
 sys.path.append("./module")
 from model.allModel import *
-from datasets.dataset_h5_v2 import NeuEvDataset as Dataset
+from datasets.dataset_h5_v3 import NeuEvDataset as Dataset
 
 from re import match
 
@@ -163,20 +163,16 @@ def main_worker(rank,args):
         
         train_sampler.set_epoch(epoch)
 
-        for i, (pmt_q, pmt_t, vtx_pos) in enumerate(tqdm(trnLoader, desc='epoch %d/%d' % (epoch+1, nEpoch))):
+        for i, (pmt_q, pmt_t, vtx_pos,pmt_pos) in enumerate(tqdm(trnLoader, desc='epoch %d/%d' % (epoch+1, nEpoch))):
 
             
             pmts_q = pmt_q.reshape(pmt_q.shape[0],pmt_q.shape[1],1).to(local_gpu_id)
             pmts_t = pmt_t.reshape(pmt_q.shape[0],pmt_q.shape[1],1).to(local_gpu_id)
+            pmt_pos = pmt_pos.to(local_gpu_id)
 
-            
             
             data = torch.cat([pmts_q,pmts_t],dim=2)
 
-
-
-            pmt_pos = pmt_pos_pre.unsqueeze(0).repeat(data.shape[0],1,1).to(local_gpu_id)
-            
             labels = vtx_pos.float().to(device=local_gpu_id) ### vertex
             
             
@@ -210,16 +206,13 @@ def main_worker(rank,args):
         val_loss, val_acc = 0., 0.
         nProcessed = 0
         with torch.no_grad():
-            for i, (pmt_q, pmt_t, vtx_pos) in enumerate(tqdm(valLoader)):
+            for i, (pmt_q, pmt_t, vtx_pos,pmt_pos) in enumerate(tqdm(valLoader)):
 
                 pmts_q = pmt_q.reshape(pmt_q.shape[0],pmt_q.shape[1],1).to(local_gpu_id)
                 pmts_t = pmt_t.reshape(pmt_q.shape[0],pmt_q.shape[1],1).to(local_gpu_id)
                 
                 data = torch.cat([pmts_q,pmts_t],dim=2)
 
-
-                pmt_pos = pmt_pos_pre.unsqueeze(0).repeat(data.shape[0],1,1).to(local_gpu_id)
-                
                 labels = vtx_pos.float().to(device=local_gpu_id) ### vertex
                 
                 label = labels.reshape(-1,3)

@@ -1,0 +1,52 @@
+## Configuration for the training, evaluation
+samples:
+
+  # - name: elec
+  #   label : 1
+  #   path: /tmp/test_data/mu_500_h5/mu_500MeV_799.h5
+  #   path: /tmp/test_data/mu_500_h5/*.h5
+  - name: elec
+    label : 1
+    path: /tmp/test_data/mu_500_h5/mu_500MeV_2*.h5
+  - name: elec
+    label : 1
+    path: /tmp/test_data/mu_500_h5/mu_500MeV_3*.h5  
+  - name: elec
+    label : 1
+    path: /tmp/test_data/mu_500_h5/mu_500MeV_4*.h5
+  - name: elec
+    label : 1
+    path: /tmp/test_data/mu_500_h5/mu_500MeV_5*.h5
+  - name: elec
+    label : 1
+    path: /tmp/test_data/mu_500_h5/mu_500MeV_6*.h5
+  - name: elec
+    label : 1
+    path: /tmp/test_data/mu_500_h5/mu_500MeV_7*.h5  
+  - name: elec
+    label : 1
+    path: /tmp/test_data/mu_500_h5/mu_500MeV_8*.h5
+training:
+    nDataLoaders : 4
+    splitFractions : [0.7, 0.2] ## training set, validation set. (test set is the reminders)
+    epoch : 1000
+    batch : 80
+    learningRate : 0.001
+    randomSeed : 12346772345
+
+    
+model:
+    fea : 5
+    model: 'piver_mul_fullpmt'
+    cla : 3
+    hidden : 32
+    heads : 4
+    posfeed : 32
+    dropout : 0.1
+    depths : 3
+    cross_head : 4
+    num_latents : 200
+    query_dim : 32
+
+    
+    

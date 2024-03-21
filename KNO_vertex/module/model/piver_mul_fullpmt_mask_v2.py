@@ -5,11 +5,11 @@ import torch
 from torch.nn import Linear
 
 
-from model.perceiver_rev_fullpmt import *
+from model.perceiver_rev_fullpmt_mask_v2 import *
 
-class piver_mul_fullpmt(nn.Module):
+class piver_mul_fullpmt_mask_v2(nn.Module):
     def __init__(self,**kwargs):
-        super(piver_mul_fullpmt, self).__init__()
+        super(piver_mul_fullpmt_mask_v2, self).__init__()
 
         self.fea = kwargs['fea']
         self.cla = kwargs['cla']
@@ -22,17 +22,18 @@ class piver_mul_fullpmt(nn.Module):
         self.batch = kwargs['batch']
         self.num_latents = kwargs['num_latents']
         self.query_dim = kwargs['query_dim']
+        self.cross_head = kwargs['cross_head']
 
- 
-        self.cross_attention_layer = perceiver(self.fea, self.num_latents, self.query_dim, self.hidden_dim, self.n_heads, self.dropout_ratio,self.device)
+
+        self.cross_attention_layer = perceiver(self.fea, self.cross_head, self.num_latents, self.query_dim, self.hidden_dim, self.n_heads, self.dropout_ratio,self.device)
         
-        self.encoderlayer = torch.nn.TransformerEncoderLayer(d_model=self.query_dim, nhead = self.n_heads, dim_feedforward = self.pf_dim, dropout = self.dropout_ratio, activation = "relu",batch_first=True,norm_first=False)
+        self.encoderlayer = torch.nn.TransformerEncoderLayer(d_model=self.hidden_dim, nhead = self.n_heads, dim_feedforward = self.pf_dim, dropout = self.dropout_ratio, activation = "relu",batch_first=True,norm_first=True)
         
         self.encoder = torch.nn.TransformerEncoder(self.encoderlayer, num_layers=self.n_layers)
         
 
         self.mlp = torch.nn.Sequential(
-                torch.nn.Linear(self.num_latents*self.query_dim, 256),
+                torch.nn.Linear(self.num_latents*self.hidden_dim, 256),
                 torch.nn.LeakyReLU(),
                 torch.nn.Linear(256, 128),
                 torch.nn.LeakyReLU(),
@@ -46,7 +47,7 @@ class piver_mul_fullpmt(nn.Module):
 
         self.relu = nn.LeakyReLU()
         self.dropout = nn.Dropout(self.dropout_ratio)       
-    def forward(self, data,pos):
+    def forward(self, data,pos,mask):
         
         x, pos = data, pos
 
@@ -54,12 +55,12 @@ class piver_mul_fullpmt(nn.Module):
         
         fea = torch.cat([x,pos],dim=2)
 
- 
-        out = self.cross_attention_layer(fea)
+
+        out = self.cross_attention_layer(fea,mask)
 
         out = self.encoder(out)
 
-        out = torch.reshape(out, (-1,self.num_latents*self.query_dim))
+        out = torch.reshape(out, (-1,self.num_latents*self.hidden_dim))
         out = self.mlp(out)
 
             
