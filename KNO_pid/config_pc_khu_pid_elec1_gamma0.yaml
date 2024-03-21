@@ -1,0 +1,37 @@
+## Configuration for the training, evaluation
+samples:
+
+  - name: elec
+    label : 1
+    path: /home/chyoo/KNO_data/elec_h5_cut/*.h5
+  
+  - name: gamma
+    label : 0
+    path: /home/chyoo/KNO_data/gamma_h5_cut/*.h5
+
+
+    
+training:
+    nDataLoaders : 20
+    splitFractions : [0.7, 0.2] ## training set, validation set. (test set is the reminders)
+    epoch : 1000
+    batch : 16
+    learningRate : 0.001
+    randomSeed : 12346772345
+
+    
+model:
+    fea : 5
+    model: 'piver_mul_fullpmt'
+    cla : 1
+    hidden : 16
+    heads : 4
+    posfeed : 16
+    dropout : 0.1
+    depths : 5
+    pmts : 1000
+    num_latents : 1000
+    query_dim : 16
+
+    
+    
