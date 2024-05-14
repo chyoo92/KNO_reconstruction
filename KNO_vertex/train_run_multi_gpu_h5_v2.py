@@ -35,7 +35,9 @@ def get_args_parser():
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument('--config', action='store', type=str)
     parser.add_argument('-o', '--output', action='store', type=str)
+
     parser.add_argument('--device', nargs="+", default=['0','1'])
+
 
     parser.add_argument('--rank_i', type=int, default=0)
 
@@ -124,6 +126,7 @@ def main_worker(rank,args):
                     device= local_gpu_id)
 
     model.cuda(local_gpu_id)
+
     
     if rank==0:
         torch.save(model, os.path.join('result/' + args.output, 'model.pth'))
@@ -203,9 +206,10 @@ def main_worker(rank,args):
         trn_loss /= nProcessed 
 
         print(trn_loss,'trn_loss')
-        
+
         torch.save(model.state_dict(), os.path.join('result/' + args.output, 'model_state_dict_rt.pth'))
         torch.save(model.module.state_dict(), os.path.join('result/' + args.output, 'model_module_state_dict_rt.pth'))  
+
         model.eval()
         val_loss, val_acc = 0., 0.
         nProcessed = 0
@@ -240,12 +244,12 @@ def main_worker(rank,args):
             if bestLoss > val_loss:
                 bestState = model.to('cpu').state_dict()
                 bestLoss = val_loss
+
                 torch.save(bestState, os.path.join('result/' + args.output, 'minval_model_state_dict.pth'))
 
                 model.to(local_gpu_id)
                 torch.save(model.module.state_dict(), os.path.join('result/' + args.output, 'minval_model_module_state_dict.pth'))    
- 
-                            
+
             train['loss'].append(trn_loss)
             train['val_loss'].append(val_loss)
 
@@ -255,13 +259,14 @@ def main_worker(rank,args):
                 writer.writerow(keys)
                 for row in zip(*[train[key] for key in keys]):
                     writer.writerow(row)
-        
-        
+
 
 
     bestState = model.to('cpu').state_dict()
     torch.save(bestState, os.path.join('result/' + args.output, 'weightFinal.pth'))
+
     torch.save(model.module.state_dict(), os.path.join('result/' + args.output, 'module_weightFinal.pth'))
+
     return 0
 
 

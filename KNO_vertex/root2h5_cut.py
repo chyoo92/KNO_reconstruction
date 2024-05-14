@@ -59,30 +59,41 @@ out_vtx_y = np.zeros(nEvents)
 out_vtx_z = np.zeros(nEvents)
 out_vtx_t = np.zeros(nEvents)
 
+out_vtx_dx = np.zeros(nEvents)
+out_vtx_dy = np.zeros(nEvents)
+out_vtx_dz = np.zeros(nEvents)
+
 out_vtx_px = np.zeros(nEvents)
 out_vtx_py = np.zeros(nEvents)
 out_vtx_pz = np.zeros(nEvents)
 out_vtx_ke = np.zeros(nEvents)
+out_vtx_ke2 = np.zeros(nEvents)
 
 out_pmt_q = np.zeros((nEvents, nPMTs))
 out_pmt_t = np.zeros((nEvents, nPMTs))
-
 for iEvent in tqdm(range(nEvents)):
     eventT.GetEvent(iEvent)
     trigger = event.GetTrigger(0)
 
-    nVtxs = trigger.GetNvtxs()
-    if nVtxs < 1: continue
+    if trigger.GetNvtxs() == 0: continue
+    if trigger.GetNtrack() == 0: continue
+
     out_vtx_x[iEvent] = trigger.GetVtx(0)
     out_vtx_y[iEvent] = trigger.GetVtx(1)
     out_vtx_z[iEvent] = trigger.GetVtx(2)
     out_vtx_t[iEvent] = 0
 
-    out_vtx_px[iEvent] = 0
-    out_vtx_py[iEvent] = 0
-    out_vtx_pz[iEvent] = 0
-    out_vtx_ke[iEvent] = 0
+    firstTrack = trigger.GetTracks()[0]
 
+    out_vtx_dx[iEvent] = firstTrack.GetDir(0)
+    out_vtx_dy[iEvent] = firstTrack.GetDir(1)
+    out_vtx_dz[iEvent] = firstTrack.GetDir(2)
+
+    out_vtx_px[iEvent] = firstTrack.GetPdir(0)
+    out_vtx_py[iEvent] = firstTrack.GetPdir(1)
+    out_vtx_pz[iEvent] = firstTrack.GetPdir(2)
+    out_vtx_ke[iEvent] = firstTrack.GetE()
+    out_vtx_ke2[iEvent] = firstTrack.GetE()-firstTrack.GetM()
     nHitsC = trigger.GetNcherenkovdigihits()
     for iHit in range(nHitsC):
         hit = trigger.GetCherenkovDigiHits().At(iHit)
@@ -90,16 +101,9 @@ for iEvent in tqdm(range(nEvents)):
         out_pmt_q[iEvent, iPMT] = hit.GetQ()
         out_pmt_t[iEvent, iPMT] = hit.GetT()
 
-pmts_num = (np.sum(out_pmt_q>0,axis=1) > 500)
+pmts_num = (np.sum(out_pmt_q>0,axis=1) > 1000)
 dis = (np.linalg.norm(np.zeros((3,2000))-[out_vtx_x,out_vtx_y,out_vtx_z],axis=0)<3500)
 
-# out_pmt_x = out_pmt_x[pmts_num & dis]
-# out_pmt_y = out_pmt_y[pmts_num & dis]
-# out_pmt_z = out_pmt_z[pmts_num & dis]
-
-# out_pmt_px = out_pmt_px[pmts_num & dis]
-# out_pmt_py = out_pmt_py[pmts_num & dis]
-# out_pmt_pz = out_pmt_pz[pmts_num & dis]
 
 out_vtx_x = out_vtx_x[pmts_num & dis]
 out_vtx_y = out_vtx_y[pmts_num & dis]
@@ -110,34 +114,82 @@ out_vtx_px = out_vtx_px[pmts_num & dis]
 out_vtx_py = out_vtx_py[pmts_num & dis]
 out_vtx_pz = out_vtx_pz[pmts_num & dis]
 out_vtx_ke = out_vtx_ke[pmts_num & dis]
+out_vtx_ke2 = out_vtx_ke2[pmts_num & dis]
 
 out_pmt_t = out_pmt_t[pmts_num & dis]
 out_pmt_q = out_pmt_q[pmts_num & dis]
+
+for eevents in range(out_pmt_t.shape[0]):
+    index2 = np.zeros((30912),dtype=bool) 
+    for k in range(500,2000,20):
+
+
+        if (out_pmt_q[eevents]>0).sum(0) > 5000:
+            condition = (out_pmt_t[eevents] > k) & (out_pmt_t[eevents] <= (k + 20))
+        
+            if np.sum(condition) > 0:
+
+                if out_pmt_q[eevents][condition][out_pmt_q[eevents][condition]>2].sum() > 100:
+                # if average > 1.3:
+                    index2[condition] = True
+
+        elif ((out_pmt_q[eevents]>0).sum(0) > 2700) & ((out_pmt_q[eevents]>0).sum(0) <= 5000):
+            condition = (out_pmt_t[eevents] > k) & (out_pmt_t[eevents] <= (k + 30))
+        
+            if np.sum(condition) > 0:
+
+                if out_pmt_q[eevents][condition][out_pmt_q[eevents][condition]>2].sum() > 100:
+                # if average > 1.3:
+                    index2[condition] = True
+
+        elif ((out_pmt_q[eevents]>0).sum(0) > 2000) & ((out_pmt_q[eevents]>0).sum(0) <= 2700):
+            condition = (out_pmt_t[eevents] > k) & (out_pmt_t[eevents] <= (k + 40))
+        
+            if np.sum(condition) > 0:
+
+                if out_pmt_q[eevents][condition][out_pmt_q[eevents][condition]>2].sum() > 30:
+                # if average > 1.3:
+                    index2[condition] = True
+        else:
+            condition = (out_pmt_t[eevents] > k) & (out_pmt_t[eevents] <= (k + 50))
+            if np.sum(condition) > 0:
+
+                if out_pmt_q[eevents][condition][out_pmt_q[eevents][condition]>2].sum() > 20:
+                # if average > 1.3:
+                    index2[condition] = True
+    
+    out_pmt_t[eevents] = np.where(index2, out_pmt_t[eevents], np.zeros_like(out_pmt_t[eevents]))
+    out_pmt_q[eevents] = np.where(index2, out_pmt_q[eevents], np.zeros_like(out_pmt_q[eevents]))
+
+
+
 # stop
 cut_events = (out_pmt_q.shape[0]/2000)*100
 print("cut % = "+ f"{cut_events:.3f}"+"%")
 # stop
-kwargs = {'dtype':'f4', 'compression':'lzf'}
-with h5py.File(args.output, 'w', libver='latest') as fout:
-    gGeom = fout.create_group('geom')
-    gGeom.create_dataset('pmt_x', data=out_pmt_x, **kwargs)
-    gGeom.create_dataset('pmt_y', data=out_pmt_y, **kwargs)
-    gGeom.create_dataset('pmt_z', data=out_pmt_z, **kwargs)
+if out_pmt_q.shape[0] > 0:
+    kwargs = {'dtype':'f4', 'compression':'lzf'}
+    with h5py.File(args.output, 'w', libver='latest') as fout:
+        gGeom = fout.create_group('geom')
+        gGeom.create_dataset('pmt_x', data=out_pmt_x, **kwargs)
+        gGeom.create_dataset('pmt_y', data=out_pmt_y, **kwargs)
+        gGeom.create_dataset('pmt_z', data=out_pmt_z, **kwargs)
 
-    gGeom.create_dataset('pmt_px', data=out_pmt_px, **kwargs)
-    gGeom.create_dataset('pmt_py', data=out_pmt_py, **kwargs)
-    gGeom.create_dataset('pmt_pz', data=out_pmt_pz, **kwargs)
+        gGeom.create_dataset('pmt_px', data=out_pmt_px, **kwargs)
+        gGeom.create_dataset('pmt_py', data=out_pmt_py, **kwargs)
+        gGeom.create_dataset('pmt_pz', data=out_pmt_pz, **kwargs)
 
-    gEvent = fout.create_group('event')
-    gEvent.create_dataset('vtx_x', data=out_vtx_x, **kwargs)
-    gEvent.create_dataset('vtx_y', data=out_vtx_y, **kwargs)
-    gEvent.create_dataset('vtx_z', data=out_vtx_z, **kwargs)
-    gEvent.create_dataset('vtx_t', data=out_vtx_t, **kwargs)
+        gEvent = fout.create_group('event')
+        gEvent.create_dataset('vtx_x', data=out_vtx_x, **kwargs)
+        gEvent.create_dataset('vtx_y', data=out_vtx_y, **kwargs)
+        gEvent.create_dataset('vtx_z', data=out_vtx_z, **kwargs)
+        gEvent.create_dataset('vtx_t', data=out_vtx_t, **kwargs)
 
-    gEvent.create_dataset('vtx_px', data=out_vtx_px, **kwargs)
-    gEvent.create_dataset('vtx_py', data=out_vtx_py, **kwargs)
-    gEvent.create_dataset('vtx_pz', data=out_vtx_pz, **kwargs)
-    gEvent.create_dataset('vtx_ke', data=out_vtx_ke, **kwargs)
+        gEvent.create_dataset('vtx_px', data=out_vtx_px, **kwargs)
+        gEvent.create_dataset('vtx_py', data=out_vtx_py, **kwargs)
+        gEvent.create_dataset('vtx_pz', data=out_vtx_pz, **kwargs)
+        gEvent.create_dataset('vtx_ke', data=out_vtx_ke, **kwargs)
+        gEvent.create_dataset('vtx_ke2', data=out_vtx_ke2, **kwargs)
 
-    gEvent.create_dataset('pmt_q', data=out_pmt_q, **kwargs)
-    gEvent.create_dataset('pmt_t', data=out_pmt_t, **kwargs)
+        gEvent.create_dataset('pmt_q', data=out_pmt_q, **kwargs)
+        gEvent.create_dataset('pmt_t', data=out_pmt_t, **kwargs)

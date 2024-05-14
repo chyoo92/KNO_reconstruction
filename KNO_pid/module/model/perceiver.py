@@ -27,8 +27,8 @@ class MultiHeadAttentionLayer(nn.Module):
         self.dropout = nn.Dropout(dropout_ratio)
 
         self.scale = torch.sqrt(torch.FloatTensor([self.head_dim])).to(device)
-        
-    def forward(self, query, key_value, mask):
+
+    def forward(self, query, key_value):
 
         batch_size = key_value.shape[0]
         
@@ -46,12 +46,6 @@ class MultiHeadAttentionLayer(nn.Module):
         V = V.view(batch_size, -1, self.n_heads, self.head_dim).permute(0, 2, 1, 3)
 
         energy = torch.matmul(Q, K.permute(0, 1, 3, 2)) / self.scale
-
-        re_mask = torch.reshape(mask[:,:,0],(mask[:,:,0].shape[0],1,1,mask[:,:,0].shape[1])).repeat(1,energy.shape[1],energy.shape[2],1)
-
-
-
-        energy = energy.masked_fill(re_mask==1,-1e32)
 
 
         attention = torch.softmax(energy, dim=-1)
@@ -101,19 +95,20 @@ class perceiverLayer(nn.Module):
         self.feedforward = FeedforwardLayer(query_dim, dropout_ratio)
         # self.layer_norm = nn.LayerNorm(hidden_dim)
         
-        
-    def forward(self, latents, src, mask):
+
+    def forward(self, latents, src):
 
 
         _latents = self.layer_norm_latent(latents)
         _src = self.layer_norm_input(src)
         # _src = self.layer_norm_latent(src)
 
-        _src, _,_ = self.self_attention(_latents, _src, mask)
+
+        _src, _,_ = self.self_attention(_latents, _src)
 
         src = self.layer_norm_latent(_latents + _src)
         src = self.feedforward(src) + src
-            
+
         return src
 
 
@@ -127,21 +122,21 @@ class perceiver(nn.Module):
         self.layers = perceiverLayer(input_fea, num_latents, query_dim, hidden_dim, n_heads, dropout_ratio, device)
 
         self.dropout = nn.Dropout(dropout_ratio)
-
         self.scale = torch.sqrt(torch.FloatTensor([hidden_dim])).to(device)
+        self.latents = nn.Parameter(torch.randn(self.num_latents, self.query_dim)).to(device)
         self.device = device
-    def forward(self, src, mask):
+    def forward(self, src):
 
-        
         
         batch_size = src.shape[0]
         src_len = src.shape[1]
         
-        latents = nn.Parameter(torch.randn(self.num_latents, self.query_dim)).to(self.device)
-        latents = latents.repeat(batch_size,1,1)
+        
+        latents = self.latents.repeat(batch_size,1,1)
 
         # src = self.embedding(src)
-        out = self.layers(latents,src, mask)
+
+        out = self.layers(latents,src)
 
         
         return out
