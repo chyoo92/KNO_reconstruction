@@ -143,7 +143,7 @@ for epoch in range(nEpoch):
     for i, (data,label,pos) in enumerate(tqdm(valLoader)):
 
         data = data.to(device)
-  
+
         pos = pos.to(device)
         labels = label.float().to(device=device)
 

@@ -24,8 +24,8 @@ import matplotlib.tri as tri
 
 sys.path.append("./module")
 from model.allModel import *
-from datasets.dataset_pid_h5 import *
-dset = dataset_pid_h5()
+from datasets.dataset_pid_h5_v5 import NeuEvDataset as Dataset
+dset = Dataset()
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--config', action='store', type=str, help='Configration file with sample information')
@@ -42,13 +42,13 @@ if torch.cuda.is_available() and args.device >= 0: torch.cuda.set_device(args.de
 
 
 
+dset = Dataset()
 for sampleInfo in config['samples']:
     if 'ignore' in sampleInfo and sampleInfo['ignore']: continue
     name = sampleInfo['name']
-    dset.addSample(name, sampleInfo['path'])
-    dset.setProcessLabel(name, sampleInfo['label'])
+    dset.addSample(sampleInfo['path'],sampleInfo['label'])
 
-dset.initialize(args.output)
+dset.initialize()
 
 
 
@@ -65,10 +65,10 @@ torch.manual_seed(torch.initial_seed())
 
 
 
-device = 'cpu'
-model = torch.load('result/' + args.output+'/model.pth', map_location=device)
-model.load_state_dict(torch.load('result/' + args.output+'/weight.pth', map_location=device))
-
+model = torch.load('result/' + args.output+'/model.pth',map_location='cuda')
+# model.load_state_dict(torch.load('result/' + args.output+'/weight.pth',map_location='cuda'))
+model.load_state_dict(torch.load('result/' + args.output+'/model_scrpited_min_val.pth',map_location='cuda'),strict=False)
+model = model.cuda(args.device)
 
 dd = 'result/' + args.output + '/train.csv'
 
@@ -93,25 +93,39 @@ eval_resampling = []
 eval_real = []
 model.eval()
 ens = []
+fnames = []
 val_loss, val_acc = 0., 0.
 
-for i, (fea, label, pos) in enumerate(tqdm(testLoader)):
+for i, (pmt_q,pmt_t, label, pmt_pos, fName) in enumerate(tqdm(testLoader)):
+    
+    pmts_q = pmt_q.reshape(pmt_q.shape[0],pmt_q.shape[1],1).to(args.device)
+    pmts_t = pmt_t.reshape(pmt_q.shape[0],pmt_q.shape[1],1).to(args.device)
 
-    data = fea.to(device)
-    pos = pos.to(device)
+    pmt_pos = pmt_pos.to(args.device)
 
-    label = label.float().to(device=device) ### vertex
+    data = torch.cat([pmts_q,pmts_t],dim=2)
+
+            
+    label = label.float().to(device=args.device) ### vertex
     
 
 
-    pred = model(data,pos)
+    pred = model(data,pmt_pos)
     pred = torch.sigmoid(pred)
-  
+
+
+    
     label_s.extend([x.item() for x in label.view(-1)])
     preds.extend([x.item() for x in pred.view(-1)])
-    
+    fnames.extend([x.item() for x in np.array(fName)])
 
 
-df = pd.DataFrame({'prediction':preds, 'label':label_s})
+df = pd.DataFrame({'prediction':preds, 'label':label_s,'fname':fnames})
 fPred = 'result/' + args.output + '/' + args.output + '.csv'
 df.to_csv(fPred, index=False)
+
+
+df2 = pd.DataFrame({'fname':fnames})
+f_name = 'result/' + args.output + '/' + args.output + '_fname.csv'
+df2.to_csv(f_name, index=False)
+

@@ -3,20 +3,22 @@ samples:
 
   - name: elec
     label : 1
-    # path: /store/cpnr/users/yewzzang/KNO_cla_e/h5/e_400MeV_26.h5
-    path: /store/cpnr/users/yewzzang/KNO_cla_e/h5_v2/*.h5
+    # path: /store/cpnr/users/yewzzang/KNO_cla_e/h5_v2/e_400MeV_26.h5
+    # path: /store/cpnr/users/yewzzang/KNO_cla_e/h5_v2/*.h5
+    path: /store/cpnr/users/yewzzang/KNO_cla_e/h5/*.h5
 
   - name: mu
     label : 0
-    # path: /store/cpnr/users/yewzzang/KNO_cla_mu/h5/mu_400MeV_26.h5
-    path: /store/cpnr/users/yewzzang/KNO_cla_mu/h5_v2/*.h5
+    # path: /store/cpnr/users/yewzzang/KNO_cla_mu/h5_v2/mu_400MeV_26.h5
+    # path: /store/cpnr/users/yewzzang/KNO_cla_mu/h5_v2/*.h5
+    path: /store/cpnr/users/yewzzang/KNO_cla_mu/h5/*.h5
 
     
 training:
     nDataLoaders : 8
     splitFractions : [0.7, 0.2] ## training set, validation set. (test set is the reminders)
     epoch : 1000
-    batch : 100
+    batch : 25
     learningRate : 0.001
     randomSeed : 12346772345
 
@@ -29,7 +31,7 @@ model:
     heads : 4
     posfeed : 16
     dropout : 0.1
-    depths : 2
+    depths : 9
     pmts : 200
     num_latents : 200
     query_dim : 16

@@ -53,12 +53,12 @@ class NeuEvDataset(torch.utils.data.Dataset):
         pmt_q = torch.FloatTensor(fin['event/pmt_q'][ii])
         pmt_t = torch.FloatTensor(fin['event/pmt_t'][ii])
         
-        padding_index = (pmt_t!=0)&(pmt_t!=0)
-        pmt_pos = torch.where(padding_index.unsqueeze(dim=1), self.pmt_pos, torch.zeros_like(self.pmt_pos))
+        # padding_index = (pmt_t!=0)&(pmt_t!=0)
+        # pmt_pos = torch.where(padding_index.unsqueeze(dim=1), self.pmt_pos, torch.zeros_like(self.pmt_pos))
         
         
 
-        return pmt_q, pmt_t, flabel, pmt_pos
+        return pmt_q, pmt_t, flabel, self.pmt_pos
 
     def initialize(self):
         assert(self.isInit == False)

@@ -1,0 +1,15 @@
+## Configuration for the training, evaluation
+samples:
+  - name: mu
+    label : 0
+    path: /store/cpnr/users/yewzzang/KNO_mu_500/h5_wall2/*.h5
+
+training:
+    nDataLoaders : 4
+    splitFractions : [0.7, 0.2] ## training set, validation set. (test set is the reminders)
+    epoch : 300
+    batch : 25
+    learningRate : 0.0001
+    randomSeed : 12346
+
+    

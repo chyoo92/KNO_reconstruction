@@ -101,65 +101,65 @@ for iEvent in tqdm(range(nEvents)):
         out_pmt_q[iEvent, iPMT] = hit.GetQ()
         out_pmt_t[iEvent, iPMT] = hit.GetT()
 
-pmts_num = (np.sum(out_pmt_q>0,axis=1) > 1000)
-dis = (np.linalg.norm(np.zeros((3,2000))-[out_vtx_x,out_vtx_y,out_vtx_z],axis=0)<3500)
+# pmts_num = (np.sum(out_pmt_q>0,axis=1) > 1000)
+# dis = (np.linalg.norm(np.zeros((3,2000))-[out_vtx_x,out_vtx_y,out_vtx_z],axis=0)<3500)
 
 
-out_vtx_x = out_vtx_x[pmts_num & dis]
-out_vtx_y = out_vtx_y[pmts_num & dis]
-out_vtx_z = out_vtx_z[pmts_num & dis]
-out_vtx_t = out_vtx_t[pmts_num & dis]
+# out_vtx_x = out_vtx_x[pmts_num & dis]
+# out_vtx_y = out_vtx_y[pmts_num & dis]
+# out_vtx_z = out_vtx_z[pmts_num & dis]
+# out_vtx_t = out_vtx_t[pmts_num & dis]
 
-out_vtx_px = out_vtx_px[pmts_num & dis]
-out_vtx_py = out_vtx_py[pmts_num & dis]
-out_vtx_pz = out_vtx_pz[pmts_num & dis]
-out_vtx_ke = out_vtx_ke[pmts_num & dis]
-out_vtx_ke2 = out_vtx_ke2[pmts_num & dis]
+# out_vtx_px = out_vtx_px[pmts_num & dis]
+# out_vtx_py = out_vtx_py[pmts_num & dis]
+# out_vtx_pz = out_vtx_pz[pmts_num & dis]
+# out_vtx_ke = out_vtx_ke[pmts_num & dis]
+# out_vtx_ke2 = out_vtx_ke2[pmts_num & dis]
 
-out_pmt_t = out_pmt_t[pmts_num & dis]
-out_pmt_q = out_pmt_q[pmts_num & dis]
+# out_pmt_t = out_pmt_t[pmts_num & dis]
+# out_pmt_q = out_pmt_q[pmts_num & dis]
 
-for eevents in range(out_pmt_t.shape[0]):
-    index2 = np.zeros((30912),dtype=bool) 
-    for k in range(500,2000,20):
+# for eevents in range(out_pmt_t.shape[0]):
+#     index2 = np.zeros((30912),dtype=bool) 
+#     for k in range(500,2000,20):
 
 
-        if (out_pmt_q[eevents]>0).sum(0) > 5000:
-            condition = (out_pmt_t[eevents] > k) & (out_pmt_t[eevents] <= (k + 20))
+#         if (out_pmt_q[eevents]>0).sum(0) > 5000:
+#             condition = (out_pmt_t[eevents] > k) & (out_pmt_t[eevents] <= (k + 20))
         
-            if np.sum(condition) > 0:
+#             if np.sum(condition) > 0:
 
-                if out_pmt_q[eevents][condition][out_pmt_q[eevents][condition]>2].sum() > 100:
-                # if average > 1.3:
-                    index2[condition] = True
+#                 if out_pmt_q[eevents][condition][out_pmt_q[eevents][condition]>2].sum() > 100:
+#                 # if average > 1.3:
+#                     index2[condition] = True
 
-        elif ((out_pmt_q[eevents]>0).sum(0) > 2700) & ((out_pmt_q[eevents]>0).sum(0) <= 5000):
-            condition = (out_pmt_t[eevents] > k) & (out_pmt_t[eevents] <= (k + 30))
+#         elif ((out_pmt_q[eevents]>0).sum(0) > 2700) & ((out_pmt_q[eevents]>0).sum(0) <= 5000):
+#             condition = (out_pmt_t[eevents] > k) & (out_pmt_t[eevents] <= (k + 30))
         
-            if np.sum(condition) > 0:
+#             if np.sum(condition) > 0:
 
-                if out_pmt_q[eevents][condition][out_pmt_q[eevents][condition]>2].sum() > 100:
-                # if average > 1.3:
-                    index2[condition] = True
+#                 if out_pmt_q[eevents][condition][out_pmt_q[eevents][condition]>2].sum() > 100:
+#                 # if average > 1.3:
+#                     index2[condition] = True
 
-        elif ((out_pmt_q[eevents]>0).sum(0) > 2000) & ((out_pmt_q[eevents]>0).sum(0) <= 2700):
-            condition = (out_pmt_t[eevents] > k) & (out_pmt_t[eevents] <= (k + 40))
+#         elif ((out_pmt_q[eevents]>0).sum(0) > 2000) & ((out_pmt_q[eevents]>0).sum(0) <= 2700):
+#             condition = (out_pmt_t[eevents] > k) & (out_pmt_t[eevents] <= (k + 40))
         
-            if np.sum(condition) > 0:
+#             if np.sum(condition) > 0:
 
-                if out_pmt_q[eevents][condition][out_pmt_q[eevents][condition]>2].sum() > 30:
-                # if average > 1.3:
-                    index2[condition] = True
-        else:
-            condition = (out_pmt_t[eevents] > k) & (out_pmt_t[eevents] <= (k + 50))
-            if np.sum(condition) > 0:
+#                 if out_pmt_q[eevents][condition][out_pmt_q[eevents][condition]>2].sum() > 30:
+#                 # if average > 1.3:
+#                     index2[condition] = True
+#         else:
+#             condition = (out_pmt_t[eevents] > k) & (out_pmt_t[eevents] <= (k + 50))
+#             if np.sum(condition) > 0:
 
-                if out_pmt_q[eevents][condition][out_pmt_q[eevents][condition]>2].sum() > 20:
-                # if average > 1.3:
-                    index2[condition] = True
+#                 if out_pmt_q[eevents][condition][out_pmt_q[eevents][condition]>2].sum() > 20:
+#                 # if average > 1.3:
+#                     index2[condition] = True
     
-    out_pmt_t[eevents] = np.where(index2, out_pmt_t[eevents], np.zeros_like(out_pmt_t[eevents]))
-    out_pmt_q[eevents] = np.where(index2, out_pmt_q[eevents], np.zeros_like(out_pmt_q[eevents]))
+#     out_pmt_t[eevents] = np.where(index2, out_pmt_t[eevents], np.zeros_like(out_pmt_t[eevents]))
+#     out_pmt_q[eevents] = np.where(index2, out_pmt_q[eevents], np.zeros_like(out_pmt_q[eevents]))
 
 
 

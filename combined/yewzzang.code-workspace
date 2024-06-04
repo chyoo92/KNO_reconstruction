@@ -1,0 +1,11 @@
+{
+	"folders": [
+		{
+			"name": "yewzzang",
+			"path": "../../.."
+		}
+	],
+	"settings": {
+		"workbench.editor.enablePreview": false
+	}
+}
