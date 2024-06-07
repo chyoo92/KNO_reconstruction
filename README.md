@@ -15,3 +15,31 @@ KNO_pid / KNO_vertex folder not used  --updated 20240604
     pip install h5py matplotlib jupyter ipykernel pandas uproot scikit-learn tqdm
 
     conda install -c conda-forge root
+
+
+## Training example
+    python training.py --config config_file.yaml -o output_folder \
+                                                        --type 0 \
+                                                        --padding 0 \
+                                                        --datasetversion 0 \
+                                                        --device 0 \
+                                                        --fea 0 \
+                                                        --cla 0 \
+                                                        --cross_head 0 \
+                                                        --cross_dim 0 \
+                                                        --self_head 0 \
+                                                        --self_dim 0 \
+                                                        --n_layers 0 \
+                                                        --num_latents 0 \
+                                                        --dropout_ratio 0.1 \
+                                                        --nDataLoaders 0 \
+                                                        --epoch 0 \
+                                                        --batch 0 \
+                                                        --learningRate 0.1 \
+                                                        --randomseed 1 \
+    
+    model hyper parameter setting in args
+    training parameter setting in args or config file
+    event path and type(label) setting in config file
+    
+    
