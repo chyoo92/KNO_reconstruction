@@ -186,17 +186,19 @@ def main_one_gpu(args):
             else:
                 pass
             data = torch.cat([pmts_q,pmts_t],dim=2)
+
             label = label.float().to(device=device)
             if args.type == 0: label = label.reshape(-1,3)
             if padding_index is not None:
                 pred = model(data,pmt_pos,padding_index)
             else:
                 pred = model(data,pmt_pos)
-            
+
             if args.type == 1: pred = pred.reshape(-1)
 
             
             loss = crit(pred, label)
+
             loss.backward()
             optm.step()
             optm.zero_grad()

@@ -6,7 +6,7 @@ source_dir = "/store/cpnr/users/yewzzang/KNO_mu_500/h5_wall2"  # 원본 폴더 �
 destination_dir = "/store/cpnr/users/yewzzang/KNO_mu_500/h5_wall2_sub"  # 대상 폴더 경로로 변경
 
 # 파일 이름 패턴을 생성합니다.
-for i in range(501, 1001):
+for i in range(1001, 2001):
     file_name = f"mu_500MeV_{i}.h5"
     source_file = os.path.join(source_dir, file_name)
     destination_file = os.path.join(destination_dir, file_name)
