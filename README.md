@@ -38,8 +38,10 @@ KNO_pid / KNO_vertex folder not used  --updated 20240604
                                                         --learningRate 0.1 \
                                                         --randomseed 1 \
     
-    model hyper parameter setting in args
-    training parameter setting in args or config file
-    event path and type(label) setting in config file
+model hyper parameter setting in args
+training parameter setting in args or config file
+event path and type(label) setting in config file
+
+
     
     
