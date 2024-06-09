@@ -12,7 +12,7 @@ args = parser.parse_args()
 
 
 
-ROOT.gSystem.Load("/users/yewzzang/WCSim_KNO/WCSim_v1.8.0-build/libWCSimRoot.so")
+ROOT.gSystem.Load("/users/hep/yewzzang/WCSim_KNO/WCSim_v1.8.0-build/libWCSimRoot.so")
 fin = ROOT.TFile(args.input)
 
 eventT = fin.Get("wcsimT")
@@ -101,24 +101,24 @@ for iEvent in tqdm(range(nEvents)):
         out_pmt_q[iEvent, iPMT] = hit.GetQ()
         out_pmt_t[iEvent, iPMT] = hit.GetT()
 
-pmts_num = (np.sum(out_pmt_q>0,axis=1) > 1000)
-aaa = (out_vtx_z < out_pmt_z.max()-200) & (out_vtx_z > -(out_pmt_z.max()-200))
-dis = (np.linalg.norm(np.zeros((2,2000))-[out_vtx_x,out_vtx_y],axis=0)<(out_pmt_x.max()-200))
+# pmts_num = (np.sum(out_pmt_q>0,axis=1) > 1000)
+# aaa = (out_vtx_z < out_pmt_z.max()-200) & (out_vtx_z > -(out_pmt_z.max()-200))
+# dis = (np.linalg.norm(np.zeros((2,2000))-[out_vtx_x,out_vtx_y],axis=0)<(out_pmt_x.max()-200))
 
 
-out_vtx_x = out_vtx_x[pmts_num & dis & aaa]
-out_vtx_y = out_vtx_y[pmts_num & dis & aaa]
-out_vtx_z = out_vtx_z[pmts_num & dis & aaa]
-out_vtx_t = out_vtx_t[pmts_num & dis & aaa]
+# out_vtx_x = out_vtx_x[pmts_num & dis & aaa]
+# out_vtx_y = out_vtx_y[pmts_num & dis & aaa]
+# out_vtx_z = out_vtx_z[pmts_num & dis & aaa]
+# out_vtx_t = out_vtx_t[pmts_num & dis & aaa]
 
-out_vtx_px = out_vtx_px[pmts_num & dis & aaa]
-out_vtx_py = out_vtx_py[pmts_num & dis & aaa]
-out_vtx_pz = out_vtx_pz[pmts_num & dis & aaa]
-out_vtx_ke = out_vtx_ke[pmts_num & dis & aaa]
-out_vtx_ke2 = out_vtx_ke2[pmts_num & dis & aaa]
+# out_vtx_px = out_vtx_px[pmts_num & dis & aaa]
+# out_vtx_py = out_vtx_py[pmts_num & dis & aaa]
+# out_vtx_pz = out_vtx_pz[pmts_num & dis & aaa]
+# out_vtx_ke = out_vtx_ke[pmts_num & dis & aaa]
+# out_vtx_ke2 = out_vtx_ke2[pmts_num & dis & aaa]
 
-out_pmt_t = out_pmt_t[pmts_num & dis & aaa]
-out_pmt_q = out_pmt_q[pmts_num & dis & aaa]
+# out_pmt_t = out_pmt_t[pmts_num & dis & aaa]
+# out_pmt_q = out_pmt_q[pmts_num & dis & aaa]
 
 
 
