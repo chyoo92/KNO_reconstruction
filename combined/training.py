@@ -28,7 +28,7 @@ import datetime
 sys.path.append("./module")
 
 from model.allModel import *
-from datasets import dataset_main
+from datasets import dataset_main, dataset_test
 
 
 def get_args_parser():
@@ -53,6 +53,7 @@ def get_args_parser():
     parser.add_argument('--n_layers', action='store', type=int, default=3)
     parser.add_argument('--num_latents', action='store', type=int, default=200)
     parser.add_argument('--dropout_ratio', action='store', type=float, default=0.1)
+    parser.add_argument('--vtx_1000', action='store', type=int, default=0)
 
 
     #### training parameter
@@ -61,7 +62,7 @@ def get_args_parser():
     parser.add_argument('--batch', action='store', type=int, default=25)
     parser.add_argument('--learningRate', action='store', type=float, default=0.001)
     parser.add_argument('--randomseed', action='store', type=int, default=12345)
-
+    parser.add_argument('--loss_type', action='store', type=int, default=0)
 
 
     return parser
@@ -106,7 +107,7 @@ def main_one_gpu(args):
     dset = Dataset()
 
     trnLoader, valLoader, testLoader = data_setting(args, config, dset)
-    
+
     #### model load
     if args.transfer_learning == 0:
         model = perceiver_i(fea = args.fea, \
@@ -126,29 +127,25 @@ def main_one_gpu(args):
         # model = torch.load(result_path+'/model.pth',map_location='cuda')
         # model.load_state_dict(torch.load(result_path+'/model_state_dict_rt.pth',map_location='cuda'),strict=False)
 
-
-        # 가장 최근의 체크포인트 파일 이름을 지정 (예: checkpoint_epoch_9.pth)
         checkpoint_path = f'{result_path}/checkpoint.pth'
-
-        # 체크포인트 불러오기
         checkpoint = torch.load(checkpoint_path, map_location='cuda')
-
-        # 모델과 옵티마이저 상태 복원
         model.load_state_dict(checkpoint['model_state_dict'])
         optm.load_state_dict(checkpoint['optimizer_state_dict'])
 
-    # print(model)
-    
+
     
     torch.save(model, os.path.join(result_path, 'model.pth'))
     
 
     #### Loss & optimizer 이거도 좀 세팅여러개 해야되는데
-    if args.type == 0:
+    if args.loss_type == 0:
         crit = LogCoshLoss().to(device)
-        # crit = torch.nn.HuberLoss(delta=1.0).to(device)
-    elif args.type == 1:
+    elif args.loss_type == 1:
         crit = torch.nn.BCEWithLogitsLoss().to(device)
+    elif args.loss_type == 2:
+        crit = torch.nn.L1Loss().to(device)
+    elif args.loss_type == 3:
+        crit = torch.nn.MSELoss().to(device)
     
     optm = torch.optim.Adam(model.parameters(), lr=config['training']['learningRate'])
 
@@ -188,6 +185,9 @@ def main_one_gpu(args):
             data = torch.cat([pmts_q,pmts_t],dim=2)
 
             label = label.float().to(device=device)
+            if args.vtx_1000 == 1:
+                label = label/1000
+
             if args.type == 0: label = label.reshape(-1,3)
             if padding_index is not None:
                 pred = model(data,pmt_pos,padding_index)
@@ -249,6 +249,8 @@ def main_one_gpu(args):
                 data = torch.cat([pmts_q,pmts_t],dim=2)
 
                 label = label.float().to(device=device)
+                if args.vtx_1000 == 1:
+                    label = label/1000
                 if args.type == 0: label = label.reshape(-1,3)
 
                 if padding_index is not None:
@@ -290,8 +292,8 @@ def main_one_gpu(args):
                 train['acc'].append(trn_acc)
                 train['val_acc'].append(val_acc)
 
-
-            with open(os.path.join(result_path, 'train.csv'), 'w') as f:
+            file_path = os.path.join(result_path, 'train.csv')
+            with open(file_path, 'w') as f:
                 writer = csv.writer(f)
                 keys = train.keys()
                 writer.writerow(keys)
@@ -303,55 +305,36 @@ def main_one_gpu(args):
         ###############################################
 
         
-        if (epoch//10 == 0) & (epoch>15):
+        if ((epoch//10 == 0) and (epoch>15)):
+        # if epoch > 0:
             labels, preds, fnames = [], [], []
             model.eval()
-            if args.type == 0:
-                for i, (pmt_q,pmt_t, label, pmt_pos, fName) in enumerate(tqdm(testLoader)):
 
-                    pmts_q = pmt_q.reshape(pmt_q.shape[0],pmt_q.shape[1],1).to(device)
-                    pmts_t = pmt_t.reshape(pmt_q.shape[0],pmt_q.shape[1],1).to(device)
-                    pmt_pos = pmt_pos.to(device)
-                    
-                    data = torch.cat([pmts_q,pmts_t],dim=2)
+            for i, (pmt_q,pmt_t, label, pmt_pos, fName) in enumerate(tqdm(testLoader)):
 
-                    label = label.float().to(device=device)
-                    if args.type == 0: label = label.reshape(-1,3)
+                pmts_q = pmt_q.reshape(pmt_q.shape[0],pmt_q.shape[1],1).to(device)
+                pmts_t = pmt_t.reshape(pmt_q.shape[0],pmt_q.shape[1],1).to(device)
+                pmt_pos = pmt_pos.to(device)
+                
+                data = torch.cat([pmts_q,pmts_t],dim=2)
 
-                    pred = model(data,pmt_pos)
-                    if args.type == 1: 
-                        pred = pred.reshape(-1)
-                        pred = torch.sigmoid(pred)
+                label = label.float().to(device=device)
+                if args.vtx_1000 == 1:
+                    label = label/1000
+                if args.type == 0: label = label.reshape(-1,3)
 
-                    labels.extend([x.item() for x in label.view(-1)])
-                    preds.extend([x.item() for x in pred.view(-1)])
-                    if args.type == 1:
-                        fnames.extend([x.item() for x in np.array(fName)])
+                pred = model(data,pmt_pos)
+                if args.type == 1: 
+                    pred = pred.reshape(-1)
+                    pred = torch.sigmoid(pred)
 
-                    del pmts_q, pmt_t, pmt_pos, data, label, pred, fName
-            elif args.type == 1:
-                for i, (pmt_q,pmt_t, label, pmt_pos, fName) in enumerate(tqdm(testLoader)):
+                labels.extend([x.item() for x in label.view(-1)])
+                preds.extend([x.item() for x in pred.view(-1)])
+                if args.type == 1:
+                    fnames.extend([x.item() for x in np.array(fName)])
 
-                    pmts_q = pmt_q.reshape(pmt_q.shape[0],pmt_q.shape[1],1).to(device)
-                    pmts_t = pmt_t.reshape(pmt_q.shape[0],pmt_q.shape[1],1).to(device)
-                    pmt_pos = pmt_pos.to(device)
-                    
-                    data = torch.cat([pmts_q,pmts_t],dim=2)
+                del pmts_q, pmt_t, pmt_pos, data, label, pred, fName
 
-                    label = label.float().to(device=device)
-                    if args.type == 0: label = label.reshape(-1,3)
-
-                    pred = model(data,pmt_pos)
-                    if args.type == 1: 
-                        pred = pred.reshape(-1)
-                        pred = torch.sigmoid(pred)
-
-                    labels.extend([x.item() for x in label.view(-1)])
-                    preds.extend([x.item() for x in pred.view(-1)])
-                    if args.type == 1:
-                        fnames.extend([x.item() for x in np.array(fName)])
-
-                    del pmts_q, pmt_t, pmt_pos, data, label, pred, fName
 
             if args.type == 0:
                 df = pd.DataFrame({'prediction':preds, 'label':labels})
@@ -686,6 +669,7 @@ def data_setting(args,config,dset):
     lengths.append(len(dset)-sum(lengths))
     torch.manual_seed(config['training']['randomSeed'])
     trnDset, valDset, testDset = torch.utils.data.random_split(dset, lengths)
+    print(len(trnDset),len(valDset),len(testDset))
 
     
     if isinstance(args.device,int):

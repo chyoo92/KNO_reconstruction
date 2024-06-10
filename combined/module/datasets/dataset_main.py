@@ -59,7 +59,7 @@ class NeuEvDataset(torch.utils.data.Dataset):
                 vtx_x = fin['event/vtx_x'][ii]
                 vtx_y = fin['event/vtx_y'][ii]
                 vtx_z = fin['event/vtx_z'][ii]
-                flabel = np.array([vtx_x, vtx_y, vtx_z])/1000
+                flabel = np.array([vtx_x, vtx_y, vtx_z])
         elif self.type == 1:
             flabel = self.flabels[fileIdx]
         

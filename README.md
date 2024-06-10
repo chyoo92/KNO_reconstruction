@@ -32,15 +32,17 @@ KNO_pid / KNO_vertex folder not used  --updated 20240604
                                                         --n_layers 0 \
                                                         --num_latents 0 \
                                                         --dropout_ratio 0.1 \
+                                                        --vtx_1000 0 \
                                                         --nDataLoaders 0 \
                                                         --epoch 0 \
                                                         --batch 0 \
                                                         --learningRate 0.1 \
                                                         --randomseed 1 \
+                                                        --loss_type 0
     
-model hyper parameter setting in args
-training parameter setting in args or config file
-event path and type(label) setting in config file
+model hyper parameter setting in args \
+training parameter setting in args or config file \
+event path and type(label) setting in config file \
 
 
     

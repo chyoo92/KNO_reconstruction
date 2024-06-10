@@ -2,7 +2,7 @@
 samples:
   - name: mu
     label : 0
-    path: /store/cpnr/users/yewzzang/KNO_mu_500/h5_wall2/*.h5
+    path: /store/cpnr/users/yewzzang/KNO_mu_500_full/mu_500_new/h5_w2/*.h5
 
 training:
     nDataLoaders : 4
