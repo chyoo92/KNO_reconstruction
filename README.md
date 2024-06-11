@@ -44,6 +44,12 @@ model hyper parameter setting in args \
 training parameter setting in args or config file \
 event path and type(label) setting in config file \
 
+## MC events
+MC generation git
+https://github.com/chyoo92/KNO_simulation
+
+MC file
+https://www.notion.so/changhyun0417/e3f627f41f054cb48718a9866d36d50d
 
     
     
