@@ -644,11 +644,46 @@ def main_multi_gpu(rank,args):
 
 
 
+class BayesianRegressionLoss_energy(nn.Module):
+    def __init__(self):
+        super(BayesianRegressionLoss_energy, self).__init__()
+
+    def forward(self, E_pred, E_true, sigma_E):
+
+        L_E = ((E_pred - E_true) ** 2) / (2 * sigma_E ** 2) + 0.5 * torch.log(sigma_E ** 2)
+        
+
+        loss = torch.mean(L_E)
+        return loss
+
+class BayesianRegressionLoss_vertex(nn.Module):
+    def __init__(self):
+        super(BayesianRegressionLoss_vertex, self).__init__()
+
+    def forward(self, x_pred, x_true, sigma_pos):
 
 
+        L_pos = ((x_pred - x_true) ** 2) / (2 * sigma_pos ** 2) + 1.5 * torch.log(sigma_pos ** 2)
+        
 
+        loss = torch.mean(L_pos)
+        return loss
 
+class BayesianRegressionLoss(nn.Module):
+    def __init__(self):
+        super(BayesianRegressionLoss, self).__init__()
 
+    def forward(self, E_pred, E_true, x_pred, x_true, sigma_E, sigma_pos):
+
+        L_E = ((E_pred - E_true) ** 2) / (2 * sigma_E ** 2) + 0.5 * torch.log(sigma_E ** 2)
+        
+
+        L_pos = ((x_pred - x_true) ** 2) / (2 * sigma_pos ** 2) + 1.5 * torch.log(sigma_pos ** 2)
+        
+
+        loss = torch.mean(L_E + L_pos)
+        return loss
+    
 ##########################################################
 ################## Setting data ##########################
 ##########################################################
