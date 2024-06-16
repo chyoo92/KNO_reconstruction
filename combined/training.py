@@ -656,8 +656,7 @@ class BayesianRegressionLoss_energy(nn.Module):
 
     def forward(self, E_pred, E_true):
 
-        sigma_E_sq = np.mean((E_pred - E_true)**2)
-        sigma_E = np.sqrt(sigma_E_sq)
+        sigma_E = torch.sqrt(torch.mean((E_pred - E_true) ** 2))
 
         L_E = ((E_pred - E_true) ** 2) / (2 * sigma_E ** 2) + 0.5 * torch.log(sigma_E ** 2)
         
@@ -671,8 +670,8 @@ class BayesianRegressionLoss_vertex(nn.Module):
 
     def forward(self, x_pred, x_true):
 
-        sigma_pos_sq = np.mean((x_pred - x_true)**2)
-        sigma_pos = np.sqrt(sigma_pos_sq)
+
+        sigma_pos = torch.sqrt(torch.mean((x_pred - x_true) ** 2, dim=0))
 
 
         L_pos = ((x_pred - x_true) ** 2) / (2 * sigma_pos ** 2) + 1.5 * torch.log(sigma_pos ** 2)
@@ -687,11 +686,9 @@ class BayesianRegressionLoss(nn.Module):
 
     def forward(self, E_pred, E_true, x_pred, x_true):
 
-        sigma_E_sq = np.mean((E_pred - E_true)**2)
-        sigma_E = np.sqrt(sigma_E_sq)
+        sigma_E = torch.sqrt(torch.mean((E_pred - E_true) ** 2))
 
-        sigma_pos_sq = np.mean((x_pred - x_true)**2)
-        sigma_pos = np.sqrt(sigma_pos_sq)
+        sigma_pos = torch.sqrt(torch.mean((x_pred - x_true) ** 2, dim=0))
 
         L_E = ((E_pred - E_true) ** 2) / (2 * sigma_E ** 2) + 0.5 * torch.log(sigma_E ** 2)
         
