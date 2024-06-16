@@ -12,7 +12,8 @@ args = parser.parse_args()
 
 
 
-ROOT.gSystem.Load("/users/hep/yewzzang/WCSim_KNO/WCSim_v1.8.0-build/libWCSimRoot.so")
+# ROOT.gSystem.Load("/users/hep/yewzzang/WCSim_KNO/WCSim_v1.8.0-build/libWCSimRoot.so")
+ROOT.gSystem.Load("/users/hep/yewzzang/test/WCSim_v1.8.0-build_noise/libWCSimRoot.so")
 fin = ROOT.TFile(args.input)
 
 eventT = fin.Get("wcsimT")

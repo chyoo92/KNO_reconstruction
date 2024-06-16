@@ -146,7 +146,13 @@ def main_one_gpu(args):
         crit = torch.nn.L1Loss().to(device)
     elif args.loss_type == 3:
         crit = torch.nn.MSELoss().to(device)
-    
+    elif args.loss_type == 4:
+        crit = BayesianRegressionLoss_vertex().to(device)
+    elif args.loss_type == 5:
+        crit = BayesianRegressionLoss_energy().to(device)
+    elif args.loss_type == 6:
+        crit = BayesianRegressionLoss().to(device)
+        
     optm = torch.optim.Adam(model.parameters(), lr=config['training']['learningRate'])
 
 
@@ -631,11 +637,11 @@ def main_multi_gpu(rank,args):
         #         del preds, labels, fnames
 
         
-
+    
 
     bestState = model.to('cpu').state_dict()
     torch.save(bestState, os.path.join(result_path, 'weightFinal.pth'))
-    torch.save(model.module.state_dict(), os.path.join(result_path, 'model_final.pth'))    
+    torch.save(model.module.state_dict(), os.path.join(result_path, 'model_final.pt h'))    
 
 
 
@@ -644,11 +650,14 @@ def main_multi_gpu(rank,args):
 
 
 
-class BayesianRegressionLoss_energy(nn.Module):
+class BayesianRegressionLoss_energy(nn.Module): 
     def __init__(self):
         super(BayesianRegressionLoss_energy, self).__init__()
 
-    def forward(self, E_pred, E_true, sigma_E):
+    def forward(self, E_pred, E_true):
+
+        sigma_E_sq = np.mean((E_pred - E_true)**2)
+        sigma_E = np.sqrt(sigma_E_sq)
 
         L_E = ((E_pred - E_true) ** 2) / (2 * sigma_E ** 2) + 0.5 * torch.log(sigma_E ** 2)
         
@@ -660,7 +669,10 @@ class BayesianRegressionLoss_vertex(nn.Module):
     def __init__(self):
         super(BayesianRegressionLoss_vertex, self).__init__()
 
-    def forward(self, x_pred, x_true, sigma_pos):
+    def forward(self, x_pred, x_true):
+
+        sigma_pos_sq = np.mean((x_pred - x_true)**2)
+        sigma_pos = np.sqrt(sigma_pos_sq)
 
 
         L_pos = ((x_pred - x_true) ** 2) / (2 * sigma_pos ** 2) + 1.5 * torch.log(sigma_pos ** 2)
@@ -673,7 +685,13 @@ class BayesianRegressionLoss(nn.Module):
     def __init__(self):
         super(BayesianRegressionLoss, self).__init__()
 
-    def forward(self, E_pred, E_true, x_pred, x_true, sigma_E, sigma_pos):
+    def forward(self, E_pred, E_true, x_pred, x_true):
+
+        sigma_E_sq = np.mean((E_pred - E_true)**2)
+        sigma_E = np.sqrt(sigma_E_sq)
+
+        sigma_pos_sq = np.mean((x_pred - x_true)**2)
+        sigma_pos = np.sqrt(sigma_pos_sq)
 
         L_E = ((E_pred - E_true) ** 2) / (2 * sigma_E ** 2) + 0.5 * torch.log(sigma_E ** 2)
         
