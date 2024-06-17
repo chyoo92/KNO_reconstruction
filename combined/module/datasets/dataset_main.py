@@ -62,6 +62,13 @@ class NeuEvDataset(torch.utils.data.Dataset):
                 flabel = np.array([vtx_x, vtx_y, vtx_z])
         elif self.type == 1:
             flabel = self.flabels[fileIdx]
+        elif self.type == 2:
+            flabel = torch.zeros(3)
+            
+            vtx_px = fin['event/vtx_px'][ii]
+            vtx_py = fin['event/vtx_py'][ii]
+            vtx_pz = fin['event/vtx_pz'][ii]
+            flabel = np.array([vtx_px, vtx_py, vtx_pz])
         
         if self.padding == 1:
             padding_index = (pmt_t==0)&(pmt_t==0)
