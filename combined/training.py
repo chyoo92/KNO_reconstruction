@@ -98,7 +98,9 @@ def main_one_gpu(args):
     elif args.type == 1:
         result_path = 'result_pid/' + args.output
         if not os.path.exists(result_path): os.makedirs(result_path)
-    
+    elif args.type == 2:
+        result_path = 'result_dir/' + args.output
+        if not os.path.exists(result_path): os.makedirs(result_path)
     with open(result_path + '/' + args.output+'.txt', "w") as f:
         for arg in vars(args):
             f.write(f"{arg}: {getattr(args, arg)}\n")
@@ -161,6 +163,8 @@ def main_one_gpu(args):
         train = {'loss':[], 'val_loss':[]}
     elif args.type == 1:
         train = {'loss':[], 'val_loss':[],'acc':[],'val_acc':[]}
+    elif args.type == 2:
+        train = {'loss':[], 'val_loss':[]}
     nEpoch = config['training']['epoch']
 
     for epoch in range(nEpoch):
@@ -194,7 +198,10 @@ def main_one_gpu(args):
             if args.vtx_1000 == 1:
                 label = label/1000
 
-            if args.type == 0: label = label.reshape(-1,3)
+            if args.type == 0: 
+                label = label.reshape(-1,3)
+            elif args.type == 2: 
+                label = label.reshape(-1,3)
             if padding_index is not None:
                 pred = model(data,pmt_pos,padding_index)
             else:
@@ -257,8 +264,10 @@ def main_one_gpu(args):
                 label = label.float().to(device=device)
                 if args.vtx_1000 == 1:
                     label = label/1000
-                if args.type == 0: label = label.reshape(-1,3)
-
+                if args.type == 0: 
+                    label = label.reshape(-1,3)
+                elif args.type == 2: 
+                    label = label.reshape(-1,3)
                 if padding_index is not None:
                     pred = model(data,pmt_pos,padding_index)
                 else:
@@ -327,8 +336,10 @@ def main_one_gpu(args):
                 label = label.float().to(device=device)
                 if args.vtx_1000 == 1:
                     label = label/1000
-                if args.type == 0: label = label.reshape(-1,3)
-
+                if args.type == 0: 
+                    label = label.reshape(-1,3)
+                elif args.type == 2: 
+                    label = label.reshape(-1,3)
                 pred = model(data,pmt_pos)
                 if args.type == 1: 
                     pred = pred.reshape(-1)
@@ -346,7 +357,8 @@ def main_one_gpu(args):
                 df = pd.DataFrame({'prediction':preds, 'label':labels})
             elif args.type == 1:
                 df = pd.DataFrame({'prediction':preds, 'label':labels,'fname':fnames})
-
+            elif args.type == 2:
+                df = pd.DataFrame({'prediction':preds, 'label':labels})
             fPred = result_path+'/' + args.output + '_ongoing.csv'
             df.to_csv(fPred, index=False)
 
@@ -392,16 +404,18 @@ def main_multi_gpu(rank,args):
     if args.learningRate: config['training']['learningRate'] = args.learningRate
     if args.randomseed: config['training']['randomSeed'] = args.randomseed
 
-    if rank == 0:
-        #### result folder
-        if args.type == 0:
-            result_path = 'result_vtx/' + args.output
-            if not os.path.exists(result_path): os.makedirs(result_path)
-        elif args.type == 1:
-            result_path = 'result_pid/' + args.output
-            if not os.path.exists(result_path): os.makedirs(result_path)
     
-    
+    #### result folder
+    if args.type == 0:
+        result_path = 'result_vtx/' + args.output
+        if not os.path.exists(result_path): os.makedirs(result_path)
+    elif args.type == 1:
+        result_path = 'result_pid/' + args.output
+        if not os.path.exists(result_path): os.makedirs(result_path)
+    elif args.type == 2:
+        result_path = 'result_dir/' + args.output
+        if not os.path.exists(result_path): os.makedirs(result_path)    
+
     with open(result_path + args.output, "w") as f:
         for arg in vars(args):
             f.write(f"{arg}: {getattr(args, arg)}\n")
@@ -410,8 +424,8 @@ def main_multi_gpu(rank,args):
     dset = Dataset()
 
     trnLoader, valLoader, testLoader, train_sampler = data_setting(args, config, dset)
+    
 
-    #### model load
     #### model load
     if args.transfer_learning == 0:
         model = perceiver_i(fea = args.fea, \
@@ -423,28 +437,44 @@ def main_multi_gpu(rank,args):
                         n_layers = args.n_layers, \
                         num_latents = args.num_latents, \
                         dropout_ratio = args.dropout_ratio, \
-                        batch = config['training']['batch'], \
+                        batch = int(config['training']['batch']/args.world_size), \
                         device = local_gpu_id)
 
     elif args.transfer_learning == 1:
         model = torch.load(result_path+'/model.pth',map_location='cuda')
-        model.load_state_dict(torch.load(result_path+'/model_state_dict_rt.pth',map_location='cuda'),strict=False)
+        # model.load_state_dict(torch.load(result_path+'/model_state_dict_rt.pth',map_location='cuda'),strict=False)
+        optm = torch.optim.Adam(model.parameters(), lr=config['training']['learningRate'])
+        checkpoint_path = f'{result_path}/checkpoint.pth'
+        checkpoint = torch.load(checkpoint_path, map_location='cuda')
+        model.load_state_dict(checkpoint['model_state_dict'],strict=False)
+        optm.load_state_dict(checkpoint['optimizer_state_dict'])
     model = model.to(local_gpu_id)
     # print(result_path)
     if rank == 0:
         torch.save(model, os.path.join(result_path, 'model.pth'))
     
         
-    model = DistributedDataParallel(module = model, device_ids=[local_gpu_id], find_unused_parameters=True)
+    model = DistributedDataParallel(module = model, device_ids=[local_gpu_id], find_unused_parameters=False)
 
     #### Loss & optimizer 이거도 좀 세팅여러개 해야되는데
     if args.type == 0:
         crit = LogCoshLoss().to(local_gpu_id)
     elif args.type == 1:
         crit = torch.nn.BCEWithLogitsLoss().to(local_gpu_id)
+    elif args.loss_type == 2:
+        crit = torch.nn.L1Loss().to(local_gpu_id)
+    elif args.loss_type == 3:
+        crit = torch.nn.MSELoss().to(local_gpu_id)
+    elif args.loss_type == 4:
+        crit = BayesianRegressionLoss_vertex().to(local_gpu_id)
+    elif args.loss_type == 5:
+        crit = BayesianRegressionLoss_energy().to(local_gpu_id)
+    elif args.loss_type == 6:
+        crit = BayesianRegressionLoss().to(local_gpu_id)
 
-    optm = torch.optim.Adam(model.parameters(), lr=config['training']['learningRate'])
-
+    if args.transfer_learning == 0:
+    
+        optm = torch.optim.Adam(model.parameters(), lr=config['training']['learningRate'])
 
 
     bestState, bestLoss = {}, 1e9
@@ -452,6 +482,8 @@ def main_multi_gpu(rank,args):
         train = {'loss':[], 'val_loss':[]}
     elif args.type == 1:
         train = {'loss':[], 'val_loss':[],'acc':[],'val_acc':[]}
+    elif args.type == 2:
+        train = {'loss':[], 'val_loss':[]}
     nEpoch = config['training']['epoch']
 
     for epoch in range(nEpoch):
@@ -466,6 +498,8 @@ def main_multi_gpu(rank,args):
         train_sampler.set_epoch(epoch)
         
         for i, batch_set in enumerate(tqdm(trnLoader, desc='epoch %d/%d' % (epoch+1, nEpoch))):
+
+            model.train()
             if len(batch_set) == 5:
                 pmt_q, pmt_t, label, pmt_pos, _ = batch_set
                 padding_index = None
@@ -483,15 +517,23 @@ def main_multi_gpu(rank,args):
             data = torch.cat([pmts_q,pmts_t],dim=2)
 
             label = label.float().to(device=local_gpu_id)
-            if args.type == 0: label = label.reshape(-1,3)
+            if args.vtx_1000 == 1:
+                label = label/1000
+
+            if args.type == 0: 
+                label = label.reshape(-1,3)
+            elif args.type == 2: 
+                label = label.reshape(-1,3)
             if padding_index is not None:
                 pred = model(data,pmt_pos,padding_index)
             else:
                 pred = model(data,pmt_pos)
+
             if args.type == 1: pred = pred.reshape(-1)
 
             
             loss = crit(pred, label)
+
             loss.backward()
             optm.step()
             optm.zero_grad()
@@ -523,7 +565,6 @@ def main_multi_gpu(rank,args):
         nProcessed = 0
         with torch.no_grad():
             for i, batch_set in enumerate(tqdm(valLoader)):
-
                 if len(batch_set) == 5:
                     pmt_q, pmt_t, label, pmt_pos, _ = batch_set
                     padding_index = None
@@ -533,16 +574,21 @@ def main_multi_gpu(rank,args):
                 pmts_q = pmt_q.reshape(pmt_q.shape[0],pmt_q.shape[1],1).to(local_gpu_id)
                 pmts_t = pmt_t.reshape(pmt_q.shape[0],pmt_q.shape[1],1).to(local_gpu_id)
                 pmt_pos = pmt_pos.to(local_gpu_id)
-                
+
                 if padding_index is not None:
                     padding_index = padding_index.to(local_gpu_id)
                 else:
                     pass
+                
                 data = torch.cat([pmts_q,pmts_t],dim=2)
 
                 label = label.float().to(device=local_gpu_id)
-                if args.type == 0: label = label.reshape(-1,3)
-
+                if args.vtx_1000 == 1:
+                    label = label/1000
+                if args.type == 0: 
+                    label = label.reshape(-1,3)
+                elif args.type == 2: 
+                    label = label.reshape(-1,3)
                 if padding_index is not None:
                     pred = model(data,pmt_pos,padding_index)
                 else:
@@ -592,49 +638,15 @@ def main_multi_gpu(rank,args):
                     writer.writerow(keys)
                     for row in zip(*[train[key] for key in keys]):
                         writer.writerow(row)
+        checkpoint = {
+            'epoch': epoch,
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optm.state_dict(),
+            'loss': loss.item(),
+        }
+        if rank==0:
+            torch.save(checkpoint, os.path.join(result_path,'checkpoint.pth'))
 
-
-
-        ###############################################
-        ################## test #######################
-        ###############################################
-
-        
-
-        # if epoch//10 == 0:
-        #     if rank == 0:
-        #         labels, preds, fnames = [], [], []
-        #         model.eval()
-        #         for i, (pmt_q,pmt_t, label, pmt_pos, fName) in enumerate(tqdm(testLoader)):
-
-        #             pmts_q = pmt_q.reshape(pmt_q.shape[0],pmt_q.shape[1],1).to(local_gpu_id)
-        #             pmts_t = pmt_t.reshape(pmt_q.shape[0],pmt_q.shape[1],1).to(local_gpu_id)
-        #             pmt_pos = pmt_pos.to(local_gpu_id)
-                    
-        #             data = torch.cat([pmts_q,pmts_t],dim=2)
-
-        #             label = label.float().to(device=local_gpu_id)
-        #             if args.type == 0: label = label.reshape(-1,3)
-
-        #             pred = model(data,pmt_pos)
-        #             if args.type == 1: pred = pred.reshape(-1)
-
-        #             labels.extend([x.item() for x in label.view(-1)])
-        #             preds.extend([x.item() for x in pred.view(-1)])
-        #             if args.type == 1:
-        #                 fnames.extend([x.item() for x in np.array(fName)])
-
-        #             del pmts_q, pmt_t, pmt_pos, data, label, pred, fName
-
-
-        #         if args.type == 0:
-        #             df = pd.DataFrame({'prediction':preds, 'label':labels})
-        #         elif args.type == 1:
-        #             df = pd.DataFrame({'prediction':preds, 'label':labels,'fname':fnames})
-        #         fPred = result_path+'/' + args.output + '.csv'
-        #         df.to_csv(fPred, index=False)
-
-        #         del preds, labels, fnames
 
         
     
@@ -656,7 +668,7 @@ class BayesianRegressionLoss_energy(nn.Module):
 
     def forward(self, E_pred, E_true):
 
-        sigma_E = torch.sqrt(torch.mean((E_pred - E_true) ** 2))
+        sigma_E = torch.sqrt(torch.mean((E_pred) ** 2))
 
         L_E = ((E_pred - E_true) ** 2) / (2 * sigma_E ** 2) + 0.5 * torch.log(sigma_E ** 2)
         
@@ -671,8 +683,9 @@ class BayesianRegressionLoss_vertex(nn.Module):
     def forward(self, x_pred, x_true):
 
 
-        sigma_pos = torch.sqrt(torch.mean((x_pred - x_true) ** 2, dim=0))
-
+        sigma_pos = torch.sqrt(torch.mean((x_pred-x_true) ** 2, dim=0))
+        if sigma_pos <= 1e-6:
+            sigma_pos = 1e-6
 
         L_pos = ((x_pred - x_true) ** 2) / (2 * sigma_pos ** 2) + 1.5 * torch.log(sigma_pos ** 2)
         
@@ -686,10 +699,12 @@ class BayesianRegressionLoss(nn.Module):
 
     def forward(self, E_pred, E_true, x_pred, x_true):
 
-        sigma_E = torch.sqrt(torch.mean((E_pred - E_true) ** 2))
-
-        sigma_pos = torch.sqrt(torch.mean((x_pred - x_true) ** 2, dim=0))
-
+        sigma_E = torch.sqrt(torch.mean((E_pred) ** 2))
+        if sigma_E <= 1e-6:
+            sigma_E = 1e-6
+        sigma_pos = torch.sqrt(torch.mean((x_pred) ** 2, dim=0))
+        if sigma_pos <= 1e-6:
+            sigma_pos = 1e-6
         L_E = ((E_pred - E_true) ** 2) / (2 * sigma_E ** 2) + 0.5 * torch.log(sigma_E ** 2)
         
 

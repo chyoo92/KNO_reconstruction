@@ -104,7 +104,7 @@ for iEvent in tqdm(range(nEvents)):
 
 pmts_num = (np.sum(out_pmt_q>0,axis=1) > 1000)
 aaa = (out_vtx_z < out_pmt_z.max()-200) & (out_vtx_z > -(out_pmt_z.max()-200))
-dis = (np.linalg.norm(np.zeros((2,20))-[out_vtx_x,out_vtx_y],axis=0)<(out_pmt_x.max()-200))
+dis = (np.linalg.norm(np.zeros((2,2000))-[out_vtx_x,out_vtx_y],axis=0)<(out_pmt_x.max()-200))
 
 
 out_vtx_x = out_vtx_x[pmts_num & dis & aaa]

@@ -3,10 +3,10 @@ import shutil
 
 # 원본 디렉토리와 대상 디렉토리 경로를 설정합니다.
 source_dir = "/store/cpnr/users/yewzzang/KNO_mu_500_full/mu_500_new/h5_w2"  # 원본 폴더 경로로 변경
-destination_dir = "/store/cpnr/users/yewzzang/KNO_mu_500_full/mu_500_new/h5_w2_sub"  # 대상 폴더 경로로 변경
+destination_dir = "/store/cpnr/users/yewzzang/KNO_mu_500_full/mu_500_new/h5_w2_sub2"  # 대상 폴더 경로로 변경
 
 # 파일 이름 패턴을 생성합니다.
-for i in range(1, 1001):
+for i in range(1001, 2001):
     file_name = f"mu_500MeV_{i}.h5"
     source_file = os.path.join(source_dir, file_name)
     destination_file = os.path.join(destination_dir, file_name)
