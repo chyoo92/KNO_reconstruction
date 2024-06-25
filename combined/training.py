@@ -442,11 +442,12 @@ def main_multi_gpu(rank,args):
 
     elif args.transfer_learning == 1:
         model = torch.load(result_path+'/model.pth',map_location='cuda')
-        # model.load_state_dict(torch.load(result_path+'/model_state_dict_rt.pth',map_location='cuda'),strict=False)
+        model.load_state_dict(torch.load(result_path+'/model_module_state_dict_rt.pth',map_location='cuda'),strict=False)
+
         optm = torch.optim.Adam(model.parameters(), lr=config['training']['learningRate'])
         checkpoint_path = f'{result_path}/checkpoint.pth'
         checkpoint = torch.load(checkpoint_path, map_location='cuda')
-        model.load_state_dict(checkpoint['model_state_dict'],strict=False)
+        #    model.module.load_state_dict(checkpoint['model_state_dict'],strict=False)
         optm.load_state_dict(checkpoint['optimizer_state_dict'])
     model = model.to(local_gpu_id)
     # print(result_path)
