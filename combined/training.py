@@ -101,6 +101,9 @@ def main_one_gpu(args):
     elif args.type == 2:
         result_path = 'result_dir/' + args.output
         if not os.path.exists(result_path): os.makedirs(result_path)
+    elif args.type == 3:
+        result_path = 'result_eng/' + args.output
+        if not os.path.exists(result_path): os.makedirs(result_path)
     with open(result_path + '/' + args.output+'.txt', "w") as f:
         for arg in vars(args):
             f.write(f"{arg}: {getattr(args, arg)}\n")
@@ -165,6 +168,8 @@ def main_one_gpu(args):
         train = {'loss':[], 'val_loss':[],'acc':[],'val_acc':[]}
     elif args.type == 2:
         train = {'loss':[], 'val_loss':[]}
+    elif args.type == 3:
+        train = {'loss':[], 'val_loss':[]}
     nEpoch = config['training']['epoch']
 
     for epoch in range(nEpoch):
@@ -202,13 +207,16 @@ def main_one_gpu(args):
                 label = label.reshape(-1,3)
             elif args.type == 2: 
                 label = label.reshape(-1,3)
+
+
+
             if padding_index is not None:
                 pred = model(data,pmt_pos,padding_index)
             else:
                 pred = model(data,pmt_pos)
 
             if args.type == 1: pred = pred.reshape(-1)
-
+            elif args.type == 3: pred = pred.reshape(-1)
             
             loss = crit(pred, label)
 
@@ -273,7 +281,8 @@ def main_one_gpu(args):
                 else:
                     pred = model(data,pmt_pos)
                 if args.type == 1: pred = pred.reshape(-1)
-                
+                elif args.type == 3: pred = pred.reshape(-1)
+
                 loss = crit(pred, label)
                 
                 ibatch = len(label)
@@ -358,6 +367,8 @@ def main_one_gpu(args):
             elif args.type == 1:
                 df = pd.DataFrame({'prediction':preds, 'label':labels,'fname':fnames})
             elif args.type == 2:
+                df = pd.DataFrame({'prediction':preds, 'label':labels})
+            elif args.type == 3:
                 df = pd.DataFrame({'prediction':preds, 'label':labels})
             fPred = result_path+'/' + args.output + '_ongoing.csv'
             df.to_csv(fPred, index=False)

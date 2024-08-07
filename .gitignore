@@ -1,6 +1,9 @@
 */result/
 */result_pid/
 */result_vtx/
+*/result_vtx200/
+*/result_dir/
+*.result_eng/
 */.csv
 */*.out
 */*.sh

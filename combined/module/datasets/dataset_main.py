@@ -69,6 +69,8 @@ class NeuEvDataset(torch.utils.data.Dataset):
             vtx_py = fin['event/vtx_py'][ii]
             vtx_pz = fin['event/vtx_pz'][ii]
             flabel = np.array([vtx_px, vtx_py, vtx_pz])
+        elif self.type == 3:
+            flabel = fin['event/vtx_ke'][ii]
         
         if self.padding == 1:
             padding_index = (pmt_t==0)&(pmt_t==0)

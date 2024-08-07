@@ -27,7 +27,7 @@ from torch.utils.data.distributed import DistributedSampler
 sys.path.append("./module")
 
 from model.allModel import *
-from datasets import dataset_main
+from datasets import dataset_main, dataset_test
 
 
 def get_args_parser():
@@ -64,7 +64,7 @@ def main_one_gpu(args):
         dataset_module = dataset_test  #### test dataset code
     Dataset = dataset_module.NeuEvDataset
 
-    device = 'cuda'
+    device = 'cuda:'+str(args.device)
 
     #### config file load
     config = yaml.load(open(args.config).read(), Loader=yaml.FullLoader)
@@ -82,21 +82,25 @@ def main_one_gpu(args):
         
     elif args.type == 1:
         result_path = 'result_pid/' + args.output
-        
+    elif args.type == 2:
+        result_path = 'result_dir/' + args.output
+    elif args.type == 3:
+        result_path = 'result_eng/' + args.output    
+    #### dataset 
     #### dataset 
     dset = Dataset()
 
 
 
     trnLoader, valLoader, testLoader = data_setting(args, config, dset)
-
     
     #### model load
     
-    model = torch.load(result_path+'/model.pth',map_location='cuda')
-    model.load_state_dict(torch.load(result_path+'/weight.pth',map_location='cuda'),strict=False)
+    model = torch.load(result_path+'/model.pth',map_location=device)
+    # model.load_state_dict(torch.load(result_path+'/model_scrpited_min_val.pth',map_location='cuda'),strict=False)
+    model.load_state_dict(torch.load(result_path+'/weight.pth',map_location=device),strict=False)
 
-    model = model.cuda(device)
+    model = model.to(args.device)
     
     ###############################################
     ################## test #######################
@@ -105,58 +109,45 @@ def main_one_gpu(args):
 
     labels, preds, fnames = [], [], []
     model.eval()
-    if args.type == 0:
-        for i, (pmt_q,pmt_t, label, pmt_pos, fName) in enumerate(tqdm(testLoader)):
 
-            pmts_q = pmt_q.reshape(pmt_q.shape[0],pmt_q.shape[1],1).to(device)
-            pmts_t = pmt_t.reshape(pmt_q.shape[0],pmt_q.shape[1],1).to(device)
-            pmt_pos = pmt_pos.to(device)
-            
-            data = torch.cat([pmts_q,pmts_t],dim=2)
+    for i, (pmt_q,pmt_t, label, pmt_pos, fName) in enumerate(tqdm(testLoader)):
 
-            label = label.float().to(device=device)
-            if args.type == 0: label = label.reshape(-1,3)
+        pmts_q = pmt_q.reshape(pmt_q.shape[0],pmt_q.shape[1],1).to(args.device)
+        pmts_t = pmt_t.reshape(pmt_q.shape[0],pmt_q.shape[1],1).to(args.device)
+        pmt_pos = pmt_pos.to(args.device)
+        
+        data = torch.cat([pmts_q,pmts_t],dim=2)
 
-            pred = model(data,pmt_pos)
-            if args.type == 1: 
-                pred = pred.reshape(-1)
-                pred = torch.sigmoid(pred)
+        label = label.float().to(device=args.device)
+        if args.type == 0: label = label.reshape(-1,3)
+        elif args.type == 2: label = label.reshape(-1,3)
+        
+        pred = model(data,pmt_pos)
+        if args.type == 1: 
+            pred = pred.reshape(-1)
+            pred = torch.sigmoid(pred)
+        
 
-            labels.extend([x.item() for x in label.view(-1)])
-            preds.extend([x.item() for x in pred.view(-1)])
-            if args.type == 1:
-                fnames.extend([x.item() for x in np.array(fName)])
+        labels.extend([x.item() for x in label.view(-1)])
+        preds.extend([x.item() for x in pred.view(-1)])
+        if args.type == 1:
+            fnames.extend([x.item() for x in np.array(fName)])
+        elif args.type == 3:
+            fnames.extend([x.item() for x in np.array(fName)])
 
-            del pmts_q, pmt_t, pmt_pos, data, label, pred, fName
-    elif args.type == 1:
-        for i, (pmt_q,pmt_t, label, pmt_pos, fName) in enumerate(tqdm(testLoader)):
 
-            pmts_q = pmt_q.reshape(pmt_q.shape[0],pmt_q.shape[1],1).to(device)
-            pmts_t = pmt_t.reshape(pmt_q.shape[0],pmt_q.shape[1],1).to(device)
-            pmt_pos = pmt_pos.to(device)
-            
-            data = torch.cat([pmts_q,pmts_t],dim=2)
+        del pmts_q, pmt_t, pmt_pos, data, label, pred, fName
 
-            label = label.float().to(device=device)
-            if args.type == 0: label = label.reshape(-1,3)
-
-            pred = model(data,pmt_pos)
-            if args.type == 1: 
-                pred = pred.reshape(-1)
-                pred = torch.sigmoid(pred)
-
-            labels.extend([x.item() for x in label.view(-1)])
-            preds.extend([x.item() for x in pred.view(-1)])
-            if args.type == 1:
-                fnames.extend([x.item() for x in np.array(fName)])
-
-            del pmts_q, pmt_t, pmt_pos, data, label, pred, fName
 
     if args.type == 0:
         df = pd.DataFrame({'prediction':preds, 'label':labels})
     elif args.type == 1:
         df = pd.DataFrame({'prediction':preds, 'label':labels,'fname':fnames})
-
+    elif args.type == 2:
+        df = pd.DataFrame({'prediction':preds, 'label':labels})
+    elif args.type == 3:
+        df = pd.DataFrame({'prediction':preds, 'label':labels,'fname':fnames})
+    
     fPred = result_path+'/' + args.output + '.csv'
     df.to_csv(fPred, index=False)
 

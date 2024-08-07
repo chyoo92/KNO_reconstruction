@@ -1,0 +1,15 @@
+config: config_vtx_mu_khu.yaml
+output: dir_padding_1_64_8_64_200_3l
+type: 2
+padding: 1
+datasetversion: 0
+device: 0
+multi_device: 2
+transfer_learning: 0
+rank_i: 0
+cla: 3
+nDataLoaders: 10
+epoch: 300
+batch: 65
+learningRate: 0.001
+randomseed: 12345

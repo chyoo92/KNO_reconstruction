@@ -2,10 +2,10 @@
 samples:
   - name: mu
     label : 0
-    path: /store/cpnr/users/yewzzang/KNO_cla_mu/h5/*.h5
+    path: /store/cpnr/users/yewzzang/mu_cla_new/h5_w2/*.h5
   - name: e
     label : 1
-    path: /store/cpnr/users/yewzzang/KNO_cla_e/h5/*.h5
+    path: /store/cpnr/users/yewzzang/e_cla_new/h5_w2/*.h5
 
 training:
     nDataLoaders : 4
